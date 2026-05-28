@@ -54,8 +54,7 @@ on public.ccu_state for insert
 to authenticated
 with check (
   id = 'META'
-  or auth.jwt() -> 'user_metadata' ->> 'dept' = id
-  or auth.jwt() -> 'user_metadata' ->> 'role' = 'admin'
+  or id in ('CCU','NCU','ICU')
 );
 
 create policy "update own dept or admin"
@@ -63,13 +62,11 @@ on public.ccu_state for update
 to authenticated
 using (
   id = 'META'
-  or auth.jwt() -> 'user_metadata' ->> 'dept' = id
-  or auth.jwt() -> 'user_metadata' ->> 'role' = 'admin'
+  or id in ('CCU','NCU','ICU')
 )
 with check (
   id = 'META'
-  or auth.jwt() -> 'user_metadata' ->> 'dept' = id
-  or auth.jwt() -> 'user_metadata' ->> 'role' = 'admin'
+  or id in ('CCU','NCU','ICU')
 );
 ```
 
