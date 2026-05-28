@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CCU System</title>
+<script src="config.js"></script>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ LOGIN ═══════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <span class="ico">🏥</span>
+      <h1>CCU System</h1>
+      <p>ระบบบริหารหอผู้ป่วยวิกฤต</p>
+    </div>
+    <div class="login-field">
+      <label>อีเมล</label>
+      <input id="login-user" type="email" placeholder="กรอกอีเมล" autocomplete="username" autocapitalize="off" spellcheck="false">
+    </div>
+    <div class="login-hint">ใช้บัญชี Supabase Auth ที่ผู้ดูแลระบบออกให้</div>
+    <div class="login-field">
+      <label>รหัสผ่าน</label>
+      <input type="password" id="login-pass" placeholder="รหัสผ่าน..." autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="login-btn" id="login-btn" onclick="doLogin()"><span id="login-btn-icon">🔐</span><span id="login-btn-text">เข้าสู่ระบบ</span></button>
+    <div class="login-err" id="login-err">❌ ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════ MAIN APP ═══════════════════════════════════ -->
+<div id="main-app" style="display:none;flex:1;flex-direction:column;height:100%;overflow:hidden;">
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div>
+    <div class="top-title" id="app-title">🏥 CCU System</div>
+    <div class="top-sub" id="today-lbl"></div>
+  </div>
+  <div id="user-pill-wrap" class="user-pill" style="display:none;"></div>
+  <div class="top-btns">
+    <button class="tbtn-mode active" id="mode-dash" onclick="switchMode('dashboard')">📋 Dashboard</button>
+    <button class="tbtn-mode" id="mode-admin" onclick="switchMode('admin')">⚙️ Admin</button>
+    <button class="logout-btn" onclick="doLogout()">🚪 ออกจากระบบ</button>
+  </div>
+</div>
+<div id="access-note" style="padding:0 18px 8px;font-size:12px;color:var(--txd);"></div>
+
+<!-- ═══════════════════ DASHBOARD MODE ═══════════════════ -->
+<div id="dash-mode" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
+
+<!-- HEADER -->
+<div id="hdr">
+  <select id="dept-sel" onchange="changeDept()"><option value="ALL">📊 รวม 3 แผนก</option><option value="CCU">CCU</option><option value="NCU">NCU</option><option value="ICU">ICU</option></select>
+  <div class="hdr-info">
+    <div class="hdr-title"><span class="ldot"></span><span id="dtitle">CCU DASHBOARD</span></div>
+    <div class="hdr-sub" id="dfull">หอผู้ป่วยวิกฤตโรคหัวใจ</div>
+    <div id="dept-status" style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;"></div>
+  </div>
+  <div class="tleg" id="tleg"></div>
+  <div id="sstrip" onclick="toggleStaff()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleStaff();}" tabindex="0" role="button" title="กดเพื่อดู RN/PN เวรนี้">
+    <div class="si"><span class="sk">In-Charge</span><span class="sval" id="s-inc" style="color:#0e8060;">—</span></div>
+    <div class="si"><span class="sk">Team Lead</span><span class="sval" id="s-tl"  style="color:var(--blue);">—</span></div>
+    <div class="si"><span class="sk">Code Blue</span><span class="sval" id="s-cb"  style="color:var(--red);">—</span></div>
+    <div class="si"><span class="sk">แพทย์เวร</span><span class="sval" id="s-dr"  style="color:var(--ambl);">—</span></div>
+    <span class="strip-more" id="sarrow">ดูรายละเอียด ▼</span>
+  </div>
+  <div id="sexp">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:5px;font-size:10px;color:var(--txd);">
+      <span>In-Charge: <b id="se-inc" style="color:#0e8060;"></b></span>
+      <span>Team Lead: <b id="se-tl" style="color:var(--blue);"></b></span>
+      <span>Code Blue: <b id="se-cb" style="color:var(--red);"></b></span>
+      <span>แพทย์เวร: <b id="se-dr" style="color:var(--ambl);"></b></span>
+    </div>
+    <div style="font-size:10px;color:var(--txd);margin-bottom:3px;">RN เวรนี้</div><div class="chrow" id="se-rn"></div>
+    <div style="font-size:10px;color:var(--txd);margin:5px 0 3px;">PN เวรนี้</div><div class="chrow" id="se-pn"></div>
+    <div style="margin-top:6px;display:flex;gap:7px;justify-content:flex-end;">
+      <button id="edit-staff-btn" onclick="openStaff()" style="background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);padding:3px 9px;cursor:pointer;font-size:11px;font-family:inherit;">✎ แก้ไข</button>
+      <button onclick="toggleStaff()" style="background:none;border:none;color:var(--txd);cursor:pointer;font-size:11px;font-family:inherit;">▲ ย่อ</button>
+    </div>
+  </div>
+  <div style="text-align:right;flex-shrink:0;"><div id="clock"></div><div id="datef"></div></div>
+</div>
+
+<!-- STATS BAR -->
+<div id="sbar">
+  <div class="stat"><span class="sl" id="st-occ-lbl">ผู้ป่วย</span><span class="sv" id="st-occ" style="color:var(--tx)">0</span></div>
+  <div class="stat" id="st-dept-wrap" style="display:none;background:#f0f6fc;flex-direction:column;align-items:flex-start;gap:2px;padding:4px 11px;">
+    <span class="sl">แยกแผนก</span>
+    <span id="st-dept-brk" style="font-size:11px;font-weight:600;line-height:1.45;color:var(--txd);"></span>
+  </div>
+  <div class="stat" style="background:#e8f8f0;"><span class="sl">D/C</span><span class="sv" id="st-dc" style="color:var(--teal)">0</span></div>
+  <div class="stat" style="background:#fff8e0;"><span class="sl">รอย้าย</span><span class="sv" id="st-ward" style="color:var(--ambl)">0</span></div>
+  <div class="stat" style="background:#e0ecf8;"><span class="sl">ได้ห้อง</span><span class="sv" id="st-got" style="color:var(--blue)">0</span></div>
+  <div class="stat" style="background:#ece8f8;"><span class="sl">Refer</span><span class="sv" id="st-ref" style="color:var(--pur)">0</span></div>
+  <div class="sbr">
+    <span id="cdt" title="countdown ถึงรีเฟรชอัตโนมัติ"></span>
+    <button class="bsm" id="pause-refresh-btn" onclick="toggleAutoRefresh()">⏸ พักรีเฟรช</button>
+    <button class="bsm" onclick="doRefresh()">🔄 รีเฟรช</button>
+    <button class="bsm" id="tbtn" onclick="toggleEmpty()">แสดงว่าง</button>
+    <button class="bclr" id="manual-clear-btn" onclick="manualClear()">🧹 ล้างที่เสร็จ</button>
+    <button class="breset" id="reset-all-btn" onclick="confirmResetBeds()">🗑 ล้างข้อมูลทุกเตียง</button>
+  </div>
+</div>
+
+<!-- TABLE -->
+<div id="tw">
+  <table class="mt">
+    <colgroup id="tbl-cols"><col style="width:78px"><col style="width:13%"><col style="width:18%"><col style="width:14%"><col style="width:14%"><col style="width:13%"><col></colgroup>
+    <thead><tr id="tbl-head"><th>เตียง/ห้อง</th><th>ผู้ป่วย</th><th>Dx.</th><th>Master</th><th>Consult</th><th>Plan</th><th>Checklist</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<!-- BED MODAL -->
+<div class="ov" id="bed-modal">
+<div class="modal">
+  <div class="mhdr">
+    <div style="display:flex;align-items:center;gap:8px;"><span style="font-weight:700;font-size:14px;color:var(--blue);" id="m-title">เตียง</span><span id="m-tb"></span></div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button id="swbtn" onclick="openSwap()" style="display:none;padding:4px 9px;background:var(--purd);border:1px solid var(--pur);border-radius:6px;color:var(--pur);cursor:pointer;font-size:11px;font-family:inherit;">⇄ สลับ/ย้าย</button>
+      <button id="clear-bed-btn" onclick="clearBedNow()" style="padding:4px 9px;background:var(--redl);border:1px solid var(--red);border-radius:6px;color:var(--red);cursor:pointer;font-size:11px;font-family:inherit;" title="ล้างเตียงนี้เป็นว่าง">🗑 ล้างเตียง</button>
+      <button onclick="closeBed()" style="background:none;border:none;color:var(--txd);cursor:pointer;font-size:17px;">✕</button>
+    </div>
+  </div>
+  <div class="mbody" id="bed-body">
+    <div class="bed-nav" id="bed-nav"></div>
+    <div class="bed-sec" id="sec-type" data-nav="ประเภทห้อง"><div class="stitle">ประเภทห้อง</div><div style="display:flex;gap:6px;flex-wrap:wrap;" id="type-btns"></div></div>
+    <div class="bed-sec" id="sec-patient" data-nav="ผู้ป่วย">
+      <div class="stitle">ข้อมูลผู้ป่วย</div>
+      <div class="g3" style="margin-bottom:8px;">
+        <div><label class="flbl">เพศ</label><select class="ipt" id="m-gen"><option value="">—</option><option>ชาย</option><option>หญิง</option></select></div>
+        <div><label class="flbl">Class</label><select class="ipt" id="m-class"><option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
+        <div><label class="flbl">อายุ</label><input class="ipt" id="m-age" type="number" min="0" max="120" placeholder="ปี"></div>
+      </div>
+      <div class="g2">
+        <div><label class="flbl">วันที่ Admit</label><input class="ipt" id="m-admit" placeholder="วว/ดด/ปป เช่น 09/04/69" inputmode="numeric" autocomplete="off"><div class="field-hint">ใช้รูปแบบ วว/ดด/ปป หรือ วว/ดด/ปปปป</div><div class="field-error" id="m-admit-err">กรุณากรอกวันที่ Admit ให้ถูกต้อง เช่น 09/04/69</div></div>
+        <div><label class="flbl">LOS (วัน)</label><input class="ipt" id="m-los" placeholder="เช่น 10" inputmode="numeric"></div>
+      </div>
+      <p style="font-size:10px;color:var(--txm);margin:-4px 0 8px;">ไม่เก็บชื่อผู้ป่วย / HN / AN (PDPA)</p>
+    </div>
+    <div class="bed-sec" id="sec-dx" data-nav="Dx">
+      <div class="stitle">Dx.</div>
+      <div id="dx-tags" class="dxrow" style="margin-bottom:7px;min-height:22px;"></div>
+      <label class="flbl">Dx หลักจากรายการ</label>
+      <div style="display:flex;gap:6px;margin-bottom:5px;">
+        <select class="ipt" id="m-dxp" style="flex:1;"><option value="">— เลือก Dx. —</option><option>STEMI</option><option>NSTEMI</option><option>HF</option><option>HT</option><option>Chest pain</option><option>VT</option><option>PE</option><option>Open heart (CABG/Valve)</option><option>Sepsis</option><option>DKA</option><option>Gut obstruction</option><option>Acute pyelonephritis</option></select>
+        <button onclick="addDxP()" style="background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);color:var(--tx);padding:6px 10px;cursor:pointer;font-family:inherit;">เพิ่ม</button>
+      </div>
+      <label class="flbl">Dx อื่น ๆ / รายละเอียดเพิ่มเติม</label>
+      <div style="display:flex;gap:6px;">
+        <input class="ipt" id="m-dxc" placeholder="พิมพ์ Dx. เพิ่มเติม..." onkeydown="if(event.key==='Enter'){addDxC();event.preventDefault();}">
+        <button onclick="addDxC()" style="background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);color:var(--tx);padding:6px 10px;cursor:pointer;font-family:inherit;">+ เพิ่ม</button>
+      </div>
+    </div>
+    <div class="bed-sec" id="sec-team" data-nav="ทีมแพทย์">
+      <div class="stitle">ทีมแพทย์</div>
+      <div class="g2">
+        <div>
+          <label class="flbl">Master</label>
+          <div class="swrap">
+            <div style="display:flex;gap:4px;">
+              <input class="ipt" id="m-mi" placeholder="พิมพ์ชื่อแพทย์..." style="flex:1;"
+                oninput="filterDr('m-mi','m-md','master')"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();addMasterFromInput();}"
+                onblur="dh('m-md')" autocomplete="off">
+              <button type="button" onclick="addMasterFromInput()"
+                style="padding:6px 10px;background:var(--blue);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-size:13px;white-space:nowrap;font-family:inherit;" title="เพิ่ม Master">✓</button>
+            </div>
+            <div class="sdrop" id="m-md"></div>
+            <input type="hidden" id="m-mv">
+            <div id="master-tag" style="margin-top:5px;"></div>
+          </div>
+        </div>
+        <div>
+          <label class="flbl">Consult</label>
+          <div class="swrap">
+            <div style="display:flex;gap:4px;">
+              <input class="ipt" id="m-ci" placeholder="พิมพ์ชื่อแพทย์..." style="flex:1;"
+                oninput="filterDr('m-ci','m-cd','consult')"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();addConsFromInput();}"
+                onblur="dh('m-cd')" autocomplete="off">
+              <button type="button" onclick="addConsFromInput()"
+                style="padding:6px 10px;background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);color:var(--tx);cursor:pointer;font-size:13px;white-space:nowrap;font-family:inherit;" title="เพิ่ม Consult">+</button>
+            </div>
+            <div class="sdrop" id="m-cd"></div>
+          </div>
+          <div id="cons-tags" class="dxrow" style="margin-top:5px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="bed-sec" id="sec-nurse" data-nav="RN/PN"><label class="flbl">RN / PN เวร</label><input list="rn-dl" class="ipt" id="m-rn" style="color:#0e8060;" placeholder="เลือกหรือพิมพ์..."><datalist id="rn-dl"></datalist></div>
+    <div class="bed-sec" id="sec-notes" data-nav="บันทึก">
+      <div class="stitle">บันทึกเพิ่มเติม (OR / CC / อาการ)</div>
+      <div class="g2" style="margin-bottom:6px;">
+        <div><label class="flbl">OR / หัตถการ</label><textarea class="ipt" id="m-or" rows="2" style="resize:vertical;min-height:44px;"></textarea></div>
+        <div><label class="flbl">CC</label><textarea class="ipt" id="m-cc" rows="2" style="resize:vertical;min-height:44px;"></textarea></div>
+      </div>
+      <div><label class="flbl">อาการปัจจุบัน / บันทึกยาว</label><textarea class="ipt" id="m-present" rows="3" style="resize:vertical;min-height:56px;"></textarea></div>
+    </div>
+    <div class="bed-sec" id="sec-plan" data-nav="Plan">
+      <div class="stitle">Plan</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;" id="plan-btns"></div>
+      <input type="hidden" id="m-plan" value="อยู่ต่อ">
+    </div>
+    <div id="box-rt" style="display:none;background:var(--ambd);border:1px solid #e0a020;border-radius:var(--r);padding:10px;">
+      <label class="flbl">ประเภทห้องที่จอง</label>
+      <select class="ipt" id="m-rtype"><option value="">—</option><option>ห้องเดี่ยว monitor</option><option>ห้องรวม monitor</option><option>ห้องเดี่ยว</option><option>ห้องรวม</option></select>
+    </div>
+    <div id="box-dest" style="display:none;background:var(--blued);border:1px solid var(--blue);border-radius:var(--r);padding:10px;">
+      <div class="g2">
+        <div><label class="flbl">Ward</label><select class="ipt" id="m-tw" onchange="buildRooms(this.value)"><option value="">— Ward —</option><option>5A</option><option>6A</option><option>7A</option><option>8A</option><option>9A</option><option>10A</option><option>11A</option><option>12A</option><option>6B</option></select></div>
+        <div><label class="flbl">ห้อง / เตียง</label><div style="display:flex;gap:5px;"><select class="ipt" id="m-tr" style="flex:1;"></select><input class="ipt" id="m-tbed" style="width:62px;" placeholder="เตียง"></div></div>
+      </div>
+    </div>
+    <div class="bed-sec" id="sec-checklist" data-nav="Checklist"><div id="chk-card" style="display:none;background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);padding:10px;">
+      <div class="stitle" id="chk-title">Checklist</div>
+      <div id="chk-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px;"></div>
+      <div id="chk-done" style="display:none;margin-top:8px;background:#d0eedc;border:1px solid #0e8060;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;color:#0e6040;">✅ Checklist ครบ — พร้อม D/C / Refer</div>
+    </div></div>
+  </div>
+  <div class="mftr" style="justify-content:space-between;">
+    <button onclick="clearBedForm()" style="padding:6px 13px;background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);cursor:pointer;font-family:inherit;">↩ รีเซ็ตฟอร์ม</button>
+    <div style="display:flex;gap:6px;">
+      <button onclick="closeBed()" style="padding:6px 13px;background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);cursor:pointer;font-family:inherit;">ยกเลิก</button>
+      <button id="save-bed-btn" onclick="saveBed()" style="padding:6px 18px;background:var(--blue);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-weight:600;font-family:inherit;">💾 บันทึก</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- SWAP MODAL -->
+<div class="ov" id="swap-modal">
+<div class="modal" style="max-width:420px;">
+  <div class="mhdr"><span style="font-weight:700;font-size:14px;color:var(--blue);">⇄ สลับ / ย้ายเตียง</span><button onclick="closeSwap()" style="background:none;border:none;color:var(--txd);cursor:pointer;font-size:17px;">✕</button></div>
+  <div class="mbody" style="gap:10px;">
+    <div id="sw-src"></div>
+    <div><label class="flbl">โหมด</label><div style="display:flex;gap:7px;"><button id="sw-swap" class="plbtn" onclick="setSwapMode('swap')" style="flex:1;">⇄ สลับกัน</button><button id="sw-move" class="plbtn" onclick="setSwapMode('move')" style="flex:1;">→ ย้ายไปว่าง</button></div></div>
+    <div class="g2">
+      <div><label class="flbl">แผนก</label><select class="ipt" id="sw-dept" onchange="buildSwapBeds()"><option>CCU</option><option>NCU</option><option>ICU</option></select></div>
+      <div><label class="flbl">เตียง</label><select class="ipt" id="sw-bed" onchange="previewSwap()"></select></div>
+    </div>
+    <div id="sw-prev" style="display:none;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:10px;font-size:12px;"></div>
+  </div>
+  <div class="mftr" style="justify-content:flex-end;">
+    <button onclick="closeSwap()" style="padding:6px 13px;background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);cursor:pointer;font-family:inherit;">ยกเลิก</button>
+    <button id="sw-ok" onclick="doSwap()" style="padding:6px 18px;background:var(--pur);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-weight:600;font-family:inherit;margin-left:7px;">ยืนยัน</button>
+  </div>
+</div>
+</div>
+
+<!-- STAFF MODAL -->
+<div class="ov" id="staff-modal">
+<div class="modal" style="max-width:420px;">
+  <div class="mhdr"><span style="font-weight:700;font-size:14px;color:var(--blue);">บุคลากรเวรนี้ (<span id="sdlbl">CCU</span>)</span><button onclick="closeStaff()" style="background:none;border:none;color:var(--txd);cursor:pointer;font-size:17px;">✕</button></div>
+  <div class="mbody" style="gap:9px;">
+    <div><label class="flbl">In-Charge</label><input list="rn-dl" class="ipt" id="w-inc" style="color:#0e8060;"></div>
+    <div><label class="flbl">Team Lead</label><input list="rn-dl" class="ipt" id="w-tl" style="color:var(--blue);"></div>
+    <div><label class="flbl">Code Blue / TC</label><input list="rn-dl" class="ipt" id="w-cb" style="color:var(--red);"></div>
+    <div><label class="flbl">แพทย์เวร 20-08น.</label><input class="ipt" id="w-dr" style="color:var(--ambl);" placeholder="ชื่อแพทย์..."></div>
+    <div>
+      <label class="flbl">RN เวรนี้</label>
+      <div style="display:flex;gap:5px;margin-bottom:5px;">
+        <input list="rn-dl" class="ipt" id="w-ri" placeholder="พิมพ์ชื่อ RN..." style="flex:1;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addSM('RN');}">
+        <button type="button" onclick="addSM('RN')" style="padding:6px 12px;background:var(--blue);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap;">+ เพิ่ม</button>
+      </div>
+      <div id="srn-t" style="display:flex;flex-wrap:wrap;gap:3px;min-height:22px;"></div>
+    </div>
+    <div>
+      <label class="flbl">PN เวรนี้</label>
+      <div style="display:flex;gap:5px;margin-bottom:5px;">
+        <input list="pn-dl" class="ipt" id="w-pi" placeholder="พิมพ์ชื่อ PN..." style="flex:1;"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addSM('PN');}">
+        <button type="button" onclick="addSM('PN')" style="padding:6px 12px;background:#e0a020;border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-size:12px;font-family:inherit;white-space:nowrap;">+ เพิ่ม</button>
+      </div>
+      <datalist id="pn-dl"></datalist>
+      <div id="spn-t" style="display:flex;flex-wrap:wrap;gap:3px;min-height:22px;"></div>
+    </div>
+  </div>
+  <div class="mftr" style="justify-content:flex-end;">
+    <button onclick="closeStaff()" style="padding:6px 13px;background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);cursor:pointer;font-family:inherit;">ยกเลิก</button>
+    <button onclick="saveStaff()" style="padding:6px 18px;background:#0e8060;border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-weight:600;font-family:inherit;margin-left:7px;">บันทึก</button>
+  </div>
+</div>
+</div>
+
+<!-- RESET CONFIRM MODAL -->
+<div class="ov" id="reset-modal">
+  <div class="confirm-box">
+    <div class="confirm-title">⚠️ ยืนยันการล้างเตียง</div>
+    <div class="confirm-desc">คุณต้องการ <b>ล้างข้อมูลผู้ป่วยทุกเตียง</b> ใน <b id="reset-dept-lbl">CCU</b> ให้เป็นเตียงว่างทั้งหมด?<br><br>พิมพ์ชื่อแผนกเพื่อยืนยัน การกระทำนี้ไม่สามารถยกเลิกได้</div>
+    <input class="confirm-input" id="reset-confirm-text" placeholder="พิมพ์ CCU / NCU / ICU" oninput="updateResetConfirm()">
+    <div class="confirm-btns">
+      <button onclick="closeReset()" style="padding:8px 18px;background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);cursor:pointer;font-family:inherit;">ยกเลิก</button>
+      <button id="reset-ok" onclick="doResetBeds()" disabled style="padding:8px 18px;background:var(--red);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-weight:600;font-family:inherit;opacity:.45;">🗑 ล้างข้อมูลทุกเตียง</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- end dash-mode -->
+
+<!-- ═══════════════════ ADMIN MODE ═══════════════════ -->
+<div id="admin-mode" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+<div id="nav">
+  <button class="ntab active" onclick="gotoPage('import',this)">📤 นำเข้ารายงาน</button>
+  <button class="ntab" onclick="gotoPage('doctors',this)">🩺 แพทย์</button>
+  <button class="ntab" onclick="gotoPage('staff',this)">👩‍⚕️ RN/PN</button>
+</div>
+
+<!-- IMPORT PAGE -->
+<div class="page active" id="page-import">
+  <div class="card">
+    <div class="ctitle">นำเข้ารายงาน Case CCU</div>
+    <div style="display:flex;gap:7px;margin-bottom:11px;align-items:center;flex-wrap:wrap;">
+      <span style="font-size:12px;color:var(--txd);">โหมด:</span>
+      <button id="mo-off" class="mbtn" onclick="setParseMode('offline')" style="border-color:var(--teal);background:var(--teald);color:var(--teal);">🔌 Offline</button>
+      <button id="mo-ai"  class="mbtn" onclick="setParseMode('ai')" style="border-color:var(--bdr);background:var(--surf);color:var(--txd);">🤖 AI Claude</button>
+      <span id="mdesc" style="font-size:11px;color:var(--teal);">⚡ อ่านไฟล์ในเครื่อง ไม่ต้องเน็ต</span>
+    </div>
+    <div class="uzone" id="uzone" onclick="document.getElementById('finp').click()" ondragover="onDrag(event,true)" ondragleave="onDrag(event,false)" ondrop="onDrop(event)">
+      <input type="file" id="finp" accept=".pdf,.docx,.txt,.jpg,.jpeg,.png" onchange="handleFile(this.files[0])">
+      <div style="font-size:30px;margin-bottom:7px;">📄</div>
+      <div style="font-size:14px;font-weight:600;color:var(--blue);margin-bottom:3px;">คลิกหรือลากไฟล์มาวาง</div>
+      <div style="font-size:11px;color:var(--txd);">PDF · DOCX · TXT · JPG · PNG &nbsp;|&nbsp; เก็บย้อนหลัง 5 วัน</div>
+    </div>
+    <div class="pwrap" id="pwrap"><div class="spin"></div><span id="pmsg" style="font-size:13px;color:var(--blue);"></span></div>
+    <img id="imgprev" style="display:none;max-width:100%;max-height:180px;border-radius:var(--r);border:1px solid var(--bdr);margin-top:8px;">
+    <div id="rawbox" style="display:none;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:10px;margin-top:8px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+        <span style="font-size:11px;font-weight:600;color:var(--txd);">Raw Text</span>
+        <button onclick="document.getElementById('rawbox').style.display='none'" style="background:none;border:none;color:var(--txd);cursor:pointer;font-size:13px;">✕</button>
+      </div>
+      <pre id="rawpre" class="raw-pre"></pre>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ctitle">นำเข้า NCU จาก Excel</div>
+    <p style="font-size:12px;color:var(--txd);margin-bottom:10px;line-height:1.5;">
+      อ่านคอลัมน์ <b>A–N</b> จากแผ่นวันที่ (เช่น <code>30469</code> = 30/4/69)<br>
+      รหัสเตียง: <code>IMNCU1</code> = <code>IMNCU01</code>, <code>NCU03</code> = <code>NCU3</code> (เลขนำหน้า 0 ไม่สำคัญ)
+    </p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+      <button type="button" class="mbtn" onclick="document.getElementById('ncu-xls').click()" style="border-color:var(--teal);background:var(--teald);color:var(--teal);">📊 เลือกไฟล์ .xlsx</button>
+      <input type="file" id="ncu-xls" accept=".xlsx,.xls" style="display:none" onchange="handleNCUExcel(this.files[0])">
+      <label style="font-size:12px;color:var(--txd);">แผ่นวันที่:</label>
+      <select id="ncu-sheet-sel" class="ipt" style="width:auto;min-width:140px;display:none;" onchange="parseSelectedNCUSheet()"></select>
+      <button type="button" class="mbtn" id="ncu-parse-btn" style="display:none;border-color:var(--blue);background:var(--blued);color:var(--blue);" onclick="parseSelectedNCUSheet()">🔍 ดูผลก่อนนำเข้า</button>
+    </div>
+    <div id="ncu-map-hint" style="font-size:11px;color:var(--txd);background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:8px 10px;line-height:1.55;">
+      <b>แมปคอลัมน์ → ระบบ:</b> A เตียง · B สิทธิ์ · C เพศอย่างเดียว · F อายุ · G Admit · H LOS · I แพทย์ · J Dx · K OR · L CC · M อาการ · N Plan · RN เวร (กรอกใน modal)<br>
+      <span style="color:var(--txm);">ไม่นำเข้า (PDPA): ชื่อผู้ป่วย · HN · AN</span>
+    </div>
+  </div>
+  <div class="card" id="hcard" style="display:none;">
+    <div class="ctitle">
+      <span>📅 ย้อนหลัง 5 วัน</span>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <select id="imp-dept" class="ipt" style="width:auto;min-width:95px;"><option>CCU</option><option>NCU</option><option>ICU</option></select>
+        <button onclick="doImport()" style="background:var(--blue);border:none;border-radius:var(--r);color:#fff;padding:5px 12px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:500;">✓ นำเข้า</button>
+      </div>
+    </div>
+    <div id="hlist"></div>
+  </div>
+  <div id="res-wrap" style="display:none;">
+    <div class="card">
+      <div class="ctitle">
+        <span>ผลการ parse: <span id="res-lbl" style="font-weight:400;font-size:12px;"></span></span>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+          <button onclick="selAll(true)" style="background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);padding:3px 8px;cursor:pointer;font-size:11px;font-family:inherit;">เลือกทั้งหมด</button>
+          <button onclick="selAll(false)" style="background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);padding:3px 8px;cursor:pointer;font-size:11px;font-family:inherit;">ยกเลิก</button>
+          <button onclick="document.getElementById('rawbox').style.display='block'" style="background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);padding:3px 8px;cursor:pointer;font-size:11px;font-family:inherit;">🔍 Raw</button>
+        </div>
+      </div>
+      <div id="res-beds"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DOCTORS PAGE -->
+<div class="page" id="page-doctors">
+  <div class="card">
+    <div class="ctitle">
+      <span>🩺 แพทย์ <span id="dr-cnt" style="font-size:11px;color:var(--txd);font-weight:400;"></span></span>
+      <button onclick="exportDr()" style="background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);padding:4px 9px;cursor:pointer;font-size:11px;font-family:inherit;">⬇ Export</button>
+    </div>
+    <div id="spec-tabs" class="stabs" style="max-height:80px;overflow-y:auto;"></div>
+    <div style="display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap;">
+      <button class="stab on" id="wt-all" onclick="setWt('all',this)">ทั้งหมด</button>
+      <button class="stab" id="wt-ft" onclick="setWt('Full-Time',this)">Full-Time</button>
+      <button class="stab" id="wt-pt" onclick="setWt('Part-Time',this)">Part-Time</button>
+    </div>
+    <input class="sbox" id="drsrch" placeholder="🔍 ค้นหาชื่อหรือสาขา..." oninput="renderDrList()">
+    <div id="dr-list" style="max-height:340px;overflow-y:auto;"></div>
+    <div style="border-top:1px solid var(--bdr);padding-top:10px;margin-top:8px;">
+      <div style="font-size:11px;font-weight:700;color:var(--txd);margin-bottom:6px;">เพิ่มแพทย์ใหม่</div>
+      <div class="g2" style="margin-bottom:6px;">
+        <div><label class="flbl">ชื่อ (นพ./พญ.)</label><input class="ipt" id="add-dn" placeholder="นพ. ชื่อ นามสกุล..." onkeydown="if(event.key==='Enter')addDr()"></div>
+        <div><label class="flbl">Specialist / Department</label>
+          <div style="display:flex;gap:4px;">
+            <select class="ipt" id="add-ds" style="flex:1;" onchange="onDS()">
+              <option>Med</option><option>Cardio</option><option>GI</option><option>ORT</option>
+              <option>PED</option><option>OBG</option><option>CVT</option><option>Surg</option>
+              <option>Neuro</option><option>ENT</option><option>Anes</option><option>Imaging</option>
+              <option>ER</option><option>HealthProm</option><option>Dental</option>
+              <option>Beauty</option><option>GP</option><option>Mobile</option><option>Wellness</option><option>อื่นๆ</option>
+            </select>
+            <input class="ipt" id="add-ds-o" placeholder="ระบุ..." style="display:none;max-width:90px;">
+          </div>
+        </div>
+      </div>
+      <div class="g2">
+        <div><label class="flbl">ประเภท</label><select class="ipt" id="add-dwt"><option>Full-Time</option><option>Part-Time</option></select></div>
+        <div style="display:flex;align-items:flex-end;"><button onclick="addDr()" style="width:100%;padding:7px;background:var(--blue);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-size:13px;font-family:inherit;font-weight:600;">+ เพิ่มแพทย์</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- STAFF PAGE -->
+<div class="page" id="page-staff">
+  <div class="card">
+    <div class="ctitle">👩‍⚕️ RN / PN แยกแผนก</div>
+    <div class="stabs" id="sdt">
+      <button class="stab on" onclick="swSD('CCU',this)">CCU</button>
+      <button class="stab" onclick="swSD('NCU',this)">NCU</button>
+      <button class="stab" onclick="swSD('ICU',this)">ICU</button>
+    </div>
+    <div class="g2" style="gap:14px;">
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--teal);margin-bottom:6px;">RN</div>
+        <div id="rn-list" style="max-height:260px;overflow-y:auto;"></div>
+        <div class="arow">
+          <input id="rn-inp" placeholder="ชื่อ RN..." onkeydown="if(event.key==='Enter'){event.preventDefault();addSt('RN');}">
+          <button type="button" onclick="addSt('RN')" style="background:var(--teal);color:#fff;">+ เพิ่ม</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--ambl);margin-bottom:6px;">PN</div>
+        <div id="pn-list" style="max-height:260px;overflow-y:auto;"></div>
+        <div class="arow">
+          <input id="pn-inp" placeholder="ชื่อ PN..." onkeydown="if(event.key==='Enter'){event.preventDefault();addSt('PN');}">
+          <button type="button" onclick="addSt('PN')" style="background:#e0a020;color:#fff;">+ เพิ่ม</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end admin-mode -->
+</div><!-- end main-app -->
+
+<script src="app.js" defer></script>
+</body>
+</html>
