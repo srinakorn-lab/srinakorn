@@ -15,15 +15,13 @@ let cloudRealtimeBound=false;
 let cloudReloadTimer=null;
 
 function canWriteOwnDept(d=dept){
-  return currentUserRole==='admin' || d===currentUserDept;
+  return true;
 }
 function canWriteMeta(){
   return currentUserRole==='admin';
 }
 function requireDeptWrite(d=dept){
-  if(canWriteOwnDept(d))return true;
-  toast('อ่านได้ทุกแผนก แต่แก้ไขได้เฉพาะแผนกของตัวเอง','#c0392b');
-  return false;
+  return true;
 }
 function requireMetaWrite(){
   if(canWriteMeta())return true;
@@ -50,14 +48,14 @@ function updateAccessUI(){
   if(info){
     info.textContent=currentUserRole==='admin'
       ?'แอดมิน: ดูและแก้ไขได้ทุกแผนก'
-      :'staff: ดูได้ทุกแผนก · แก้ไขได้เฉพาะแผนกของตัวเอง';
+      :'staff: ดูและแก้ไขข้อมูลเตียงได้ทุกแผนก';
   }
   const deptStatus=document.getElementById('dept-status');
   if(deptStatus){
     const view=isAllView()?'ภาพรวม 3 แผนก':`${dept} · ${DEPTS[dept]?.full||''}`;
     const access=currentUserRole==='admin'
       ?'สิทธิ์: แก้ไขได้ทุกแผนก'
-      :(canWriteOwnDept(dept)?'สิทธิ์: แก้ไขได้แผนกนี้':'สิทธิ์: ดูได้อย่างเดียว');
+      :'สิทธิ์: แก้ไขได้ทุกแผนก';
     deptStatus.innerHTML=`<span style="font-size:11px;padding:2px 8px;border-radius:999px;background:var(--surf2);border:1px solid var(--bdr);color:var(--txd);">${view}</span><span style="font-size:11px;padding:2px 8px;border-radius:999px;background:${currentUserRole==='admin'?'#e8f8f0':'#f8f3e8'};border:1px solid ${currentUserRole==='admin'?'#0e8060':'#e0a020'};color:${currentUserRole==='admin'?'#0e8060':'#a06000'};">${access}</span>`;
   }
   const st=document.getElementById('st-dept-wrap');
@@ -87,14 +85,10 @@ function updateAccessUI(){
       el.style.display=currentUserRole==='admin'?'':'none';
       return;
     }
-    if(id==='swbtn'){
-      el.style.display=currentUserRole==='admin'?'none':el.style.display;
-    }
-    const locked=(currentUserRole!=='admin' && (id==='edit-staff-btn'||id==='clear-bed-btn'||id==='swbtn'));
-    el.disabled=locked;
-    el.style.opacity=locked ? .45 : 1;
-    el.style.cursor=locked?'not-allowed':'pointer';
-    if(locked)el.title='อ่านได้ทุกแผนก แต่แก้ไขได้เฉพาะแผนกของตัวเอง';
+    if(id==='swbtn') el.style.display=el.style.display;
+    el.disabled=false;
+    el.style.opacity=1;
+    el.style.cursor='pointer';
   });
 }
 
@@ -153,7 +147,7 @@ async function cloudFetchState(){
 async function cloudSaveState(payload){
   const sb=await initCloud();
   if(!sb)return false;
-  const deptRows=currentUserRole==='admin'?ALL_DEPTS:[currentUserDept];
+  const deptRows=ALL_DEPTS;
   const rows=deptRows.map(id=>({
     id,
     beds:(payload.beds||{})[id]||{},
@@ -161,15 +155,17 @@ async function cloudSaveState(payload){
     st_cfg:(payload.stCfg||{})[id]||{RN:[],PN:[]},
     updated_at:new Date().toISOString(),
   }));
-  rows.push({
-    id:'META',
-    beds:{},
-    wards:{},
-    st_cfg:{},
-    doctors:payload.doctors||[],
-    report_history:payload.reportHistory||[],
-    updated_at:new Date().toISOString(),
-  });
+  if(currentUserRole==='admin'){
+    rows.push({
+      id:'META',
+      beds:{},
+      wards:{},
+      st_cfg:{},
+      doctors:payload.doctors||[],
+      report_history:payload.reportHistory||[],
+      updated_at:new Date().toISOString(),
+    });
+  }
   for(const row of rows){
     const { error } = await sb.from('ccu_state').upsert(row,{onConflict:'id'});
     if(error){console.warn('cloudSaveState',error);return false;}
