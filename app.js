@@ -144,6 +144,19 @@ async function cloudFetchState(){
   },{beds:{},wards:{},stCfg:{},doctors:[],reportHistory:[]});
 }
 
+function hasMeaningfulState(state){
+  if(!state)return false;
+  const beds=state.beds||{};
+  const wards=state.wards||{};
+  const stCfg=state.stCfg||{};
+  const doctors=state.doctors||[];
+  const reportHistory=state.reportHistory||state.report_history||[];
+  const bedHasData=Object.values(beds).some(dep=>Object.values(dep||{}).some(b=>b&&((b.dx&&b.dx.length)||b.plan||b.master||b.consult?.length||b.gender||b.age||b.classLevel||b.admitDate||b.los||b.rn)));
+  const wardHasData=Object.values(wards).some(w=>w&&((w.inCharge||w.teamLead||w.codeBlue||w.doctorNight||w.shiftRN?.length||w.shiftPN?.length)));
+  const stHasData=Object.values(stCfg).some(s=>s&&((s.RN?.length||s.PN?.length)));
+  return bedHasData||wardHasData||stHasData||doctors.length>0||reportHistory.length>0;
+}
+
 async function cloudSaveState(payload){
   const sb=await initCloud();
   if(!sb)return false;
@@ -176,11 +189,34 @@ async function cloudSaveState(payload){
 async function hydrateFromCloud(){
   const state=await cloudFetchState();
   if(!state)return false;
+  if(!hasMeaningfulState(state)){
+    const localState=readLocalJSON(SK,{});
+    if(hasMeaningfulState({
+      beds:localState.beds||{},
+      wards:localState.wards||{},
+      stCfg:localState.stCfg||{},
+      doctors:localState.doctors||[],
+      reportHistory:localState.reportHistory||[],
+    })){
+      const seeded={
+        beds:localState.beds||{},
+        wards:localState.wards||{},
+        stCfg:localState.stCfg||{},
+        doctors:localState.doctors||[],
+        reportHistory:localState.reportHistory||[],
+      };
+      if(await cloudSaveState(seeded)){
+        toast('☁️ พบข้อมูลเก่าในเครื่องนี้ แล้วส่งขึ้น cloud ให้แล้ว','#0e8060');
+        return true;
+      }
+    }
+    return false;
+  }
   allBeds={...allBeds,...(state.beds||{})};
   wards={...wards,...(state.wards||{})};
   stCfg={...stCfg,...(state.stCfg||{})};
-  doctors=state.doctors||doctors;
-  rptHist=state.report_history||rptHist;
+  doctors=state.doctors?.length?state.doctors:doctors;
+  rptHist=state.reportHistory?.length?state.reportHistory:(state.report_history||rptHist);
   mergeStaffFromDefaults();
   writeLocalJSON(SK,{beds:allBeds,wards,stCfg,doctors,reportHistory:rptHist});
   return true;
