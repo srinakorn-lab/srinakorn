@@ -165,6 +165,7 @@ const CL = {
 let dept = 'CCU', editDept = 'CCU', showEmpty = false, staffExp = false, swapMode = 'swap';
 let allBeds = {}, wards = {}, stCfg = {}, doctors = [];
 let editId = null, editChecks = [], editConsults = [], editDx = [], editSRN = [], editSPN = [];
+let editMaster = [], editPlan = 'อยู่ต่อ', editRN = '';
 let rptHist = [], parsedBeds = [], selHistIdx = -1;
 
 // ════════════════════════════════════════
@@ -288,6 +289,7 @@ window.openBed = function(bedId, bedDept) {
   const b = allBeds[bedDept]?.[bedId] || emptyBed(bedId, bedDept);
   
   editDx = [...(b.dx || [])];
+  editMaster = [...(b.master || [])];
   editConsults = [...(b.consult || [])];
   editChecks = [...(b.checks || [])];
   
@@ -303,10 +305,10 @@ window.openBed = function(bedId, bedDept) {
   document.getElementById('m-rn').value = b.rn || '';
   document.getElementById('m-plan').value = b.plan || 'อยู่ต่อ';
   
-  renderDxList();
-  renderMasterList();
-  renderConsultList();
-  renderCheckList();
+  window.renderDxList();
+  window.renderMasterList();
+  window.renderConsultList();
+  window.renderCheckList();
   
   document.getElementById('bed-modal').classList.add('open');
 }
@@ -521,16 +523,163 @@ window.gotoPage = function(p, el) {
 // ════════════════════════════════════════
 // STUBS (implement in detail if needed)
 // ════════════════════════════════════════
-window.renderDxList = function() {}
-window.renderMasterList = function() {}
-window.renderConsultList = function() {}
-window.renderCheckList = function() {}
-window.loadAll = function() {}
-window.renderHist = function() {}
-window.renderSpecTabs = function() {}
-window.renderDrList = function() {}
-window.addSt = function(role) {}
-window.remSt = function(role, name) {}
+window.renderDxList = function() {
+  const list = document.getElementById('m-dx-list');
+  if(!list) return;
+  list.innerHTML = editDx.map(dx => {
+    const c = DXC(dx) || {bg:'#e8eef6',tx:'#1a3a6a',br:'#b8cce0'};
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:6px 8px;background:${c.bg};border:0.5px solid ${c.br};border-radius:4px;">
+      <span style="flex:1;font-size:12px;color:${c.tx};">${dx}</span>
+      <button onclick="window.remDx('${dx.replace(/'/g,"\\'")}');" style="border:none;background:none;cursor:pointer;color:#999;padding:0;font-size:12px;">✕</button>
+    </div>`;
+  }).join('');
+}
+window.renderMasterList = function() {
+  const list = document.getElementById('m-master-list');
+  if(!list) return;
+  list.innerHTML = editMaster.map(m => {
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:6px 8px;background:#e8eef6;border:0.5px solid #b8cce0;border-radius:4px;">
+      <span style="flex:1;font-size:12px;color:#1a3a6a;">${m}</span>
+      <button onclick="window.remMaster('${m.replace(/'/g,"\\'")}');" style="border:none;background:none;cursor:pointer;color:#999;padding:0;font-size:12px;">✕</button>
+    </div>`;
+  }).join('');
+}
+window.renderConsultList = function() {
+  const list = document.getElementById('m-consult-list');
+  if(!list) return;
+  list.innerHTML = editConsults.map(c => {
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:6px 8px;background:#e8e6f8;border:0.5px solid #9090d8;border-radius:4px;">
+      <span style="flex:1;font-size:12px;color:#3a3490;">${c}</span>
+      <button onclick="window.remConsult('${c.replace(/'/g,"\\'")}');" style="border:none;background:none;cursor:pointer;color:#999;padding:0;font-size:12px;">✕</button>
+    </div>`;
+  }).join('');
+}
+
+window.renderCheckList = function() {
+  const list = document.getElementById('m-check-list');
+  if(!list) return;
+  list.innerHTML = editChecks.map(ch => {
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;padding:6px 8px;background:#fff3d0;border:0.5px solid #e0a020;border-radius:4px;">
+      <span style="flex:1;font-size:12px;color:#854F0B;">${ch}</span>
+      <button onclick="window.remCheck('${ch.replace(/'/g,"\\'")}');" style="border:none;background:none;cursor:pointer;color:#999;padding:0;font-size:12px;">✕</button>
+    </div>`;
+  }).join('');
+}
+
+window.addMaster = function() {
+  const inp = document.getElementById('m-master-inp');
+  if(inp) {
+    const v = inp.value.trim();
+    if(v && !editMaster.includes(v)) {
+      editMaster.push(v);
+      window.updateBedField('master', editMaster);
+      inp.value = '';
+      window.renderMasterList();
+    }
+  }
+}
+
+window.remMaster = function(m) {
+  editMaster = editMaster.filter(x => x !== m);
+  window.updateBedField('master', editMaster);
+  window.renderMasterList();
+}
+
+window.addConsult = function() {
+  const inp = document.getElementById('m-consult-inp');
+  if(inp) {
+    const v = inp.value.trim();
+    if(v && !editConsults.includes(v)) {
+      editConsults.push(v);
+      window.updateBedField('consult', editConsults);
+      inp.value = '';
+      window.renderConsultList();
+    }
+  }
+}
+
+window.remConsult = function(c) {
+  editConsults = editConsults.filter(x => x !== c);
+  window.updateBedField('consult', editConsults);
+  window.renderConsultList();
+}
+
+window.addCheck = function() {
+  const inp = document.getElementById('m-check-inp');
+  if(inp) {
+    const v = inp.value.trim();
+    if(v && !editChecks.includes(v)) {
+      editChecks.push(v);
+      window.updateBedField('checks', editChecks);
+      inp.value = '';
+      window.renderCheckList();
+    }
+  }
+}
+
+window.remCheck = function(ch) {
+  editChecks = editChecks.filter(x => x !== ch);
+  window.updateBedField('checks', editChecks);
+  window.renderCheckList();
+}
+window.loadAll = function() {
+  // Load from Supabase or localStorage
+  // Already done in load()
+}
+
+window.renderHist = function() {
+  const el = document.getElementById('hist-list');
+  if(!el) return;
+  el.innerHTML = rptHist.slice(0, 10).map((r, i) => `
+    <div style="padding:8px;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px;">
+      <div style="font-weight:500;color:var(--color-text-primary);">${r.date || '—'}</div>
+      <div style="color:var(--color-text-secondary);">${r.note || '—'}</div>
+    </div>
+  `).join('');
+}
+
+window.renderSpecTabs = function() {
+  // Doctor specialty tabs - placeholder
+  const el = document.getElementById('spec-tabs');
+  if(!el) return;
+  const specs = ['Cardio', 'Med', 'GI', 'ORT', 'Neuro'];
+  el.innerHTML = specs.map(s => `<button style="padding:4px 12px;border:1px solid var(--color-border-tertiary);background:transparent;cursor:pointer;border-radius:4px;margin-right:4px;font-size:12px;">${s}</button>`).join('');
+}
+
+window.renderDrList = function() {
+  const el = document.getElementById('dr-list');
+  if(!el) return;
+  el.innerHTML = doctors.map(d => `
+    <div style="padding:8px;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px;">
+      <div style="font-weight:500;color:var(--color-text-primary);">${d.name || '—'}</div>
+      <div style="color:var(--color-text-secondary);">${d.specialty || '—'}</div>
+    </div>
+  `).join('');
+}
+window.addSt = function(role) {
+  const id = role === 'RN' ? 'w-ri' : 'w-pi';
+  const inp = document.getElementById(id);
+  if(!inp) return;
+  const v = inp.value.trim();
+  if(v) {
+    if(role === 'RN') {
+      if(!editSRN.includes(v)) editSRN.push(v);
+    } else {
+      if(!editSPN.includes(v)) editSPN.push(v);
+    }
+    window.renderST();
+    inp.value = '';
+  }
+}
+
+window.remSt = function(role, name) {
+  if(role === 'RN') {
+    editSRN = editSRN.filter(x => x !== name);
+  } else {
+    editSPN = editSPN.filter(x => x !== name);
+  }
+  window.renderST();
+}
 
 // ════════════════════════════════════════
 // APP INIT
