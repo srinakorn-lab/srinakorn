@@ -1,10 +1,20 @@
 // ════════════════════════════════════════
 // SUPABASE INIT
 // ════════════════════════════════════════
-let supabase = null;
+let window_supabase = null;
+// Will be initialized after all scripts load
+window.initSupabase = function() {
+  if(window.SUPABASE_CONFIG && typeof window.supabase === 'function') {
+    try {
+      window.supabase = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key);
+    } catch(e) {
+      console.error('Supabase init error:', e);
+    }
+  }
+}
 if(typeof window !== 'undefined' && window.SUPABASE_CONFIG) {
   const { createClient } = window.supabase;
-  supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key);
+  window.supabase = createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.key);
 }
 
 // ════════════════════════════════════════
@@ -29,9 +39,9 @@ window.doLogin = async function() {
   btn.innerHTML = '<i class="ti ti-loader-2"></i>กำลังเข้าสู่ระบบ...';
   
   try {
-    if(!supabase) throw new Error('Supabase ยังไม่ได้ตั้งค่า');
+    if(!window.supabase) throw new Error('Supabase ยังไม่ได้ตั้งค่า');
     
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await window.supabase.auth.signInWithPassword({ email, password });
     if(error) throw error;
     
     currentUser = data.user;
@@ -64,7 +74,7 @@ window.doLogin = async function() {
 window.doLogout = async function() {
   if(!confirm('ต้องการออกจากระบบ?')) return;
   if(supabase) {
-    await supabase.auth.signOut();
+    await window.supabase.auth.signOut();
   }
   currentUser = null;
   currentUserData = null;
@@ -182,9 +192,9 @@ window.mergeStaffFromDefaults = function() {
 // STORAGE: SUPABASE + LocalStorage fallback
 // ════════════════════════════════════════
 window.loadFromSupabase = async function() {
-  if(!supabase) return loadFromLocal();
+  if(!window.supabase) return loadFromLocal();
   try {
-    const { data, error } = await supabase.from('ccu_state').select('*').eq('id', 'META').single();
+    const { data, error } = await window.supabase.from('ccu_state').select('*').eq('id', 'META').single();
     if(error && error.code !== 'PGRST116') throw error;
     if(data) {
       allBeds = data.beds || {};
@@ -200,9 +210,9 @@ window.loadFromSupabase = async function() {
 }
 
 window.saveToSupabase = async function() {
-  if(!supabase) return saveToLocal();
+  if(!window.supabase) return saveToLocal();
   try {
-    const { error } = await supabase.from('ccu_state').upsert({
+    const { error } = await window.supabase.from('ccu_state').upsert({
       id: 'META',
       beds: allBeds,
       wards: wards,
@@ -536,7 +546,7 @@ window.initApp = async function() {
   
   // Setup Supabase realtime
   if(supabase) {
-    supabase.channel('ccu_changes').on('postgres_changes', {event: '*', schema: 'public', table: 'ccu_state'}, payload => {
+    window.supabase.channel('ccu_changes').on('postgres_changes', {event: '*', schema: 'public', table: 'ccu_state'}, payload => {
       doRefresh();
     }).subscribe();
   }
@@ -544,8 +554,9 @@ window.initApp = async function() {
 
 // Auto-login check
 window.addEventListener('DOMContentLoaded', async () => {
-  if(supabase) {
-    const { data } = await supabase.auth.getSession();
+  window.initSupabase();
+  if(window.supabase) {
+    const { data } = await window.supabase.auth.getSession();
     if(data.session) {
       currentUser = data.session.user;
       currentUserData = data.session.user.user_metadata || {};
