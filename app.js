@@ -13,7 +13,7 @@ if(typeof window !== 'undefined' && window.SUPABASE_CONFIG) {
 let currentUser = null;
 let currentUserData = null;
 
-async function doLogin() {
+window.doLogin = async function() {
   const email = document.getElementById('login-user').value.trim();
   const password = document.getElementById('login-pass').value;
   const btn = document.getElementById('login-btn');
@@ -61,7 +61,7 @@ async function doLogin() {
   }
 }
 
-async function doLogout() {
+window.doLogout = async function() {
   if(!confirm('ต้องการออกจากระบบ?')) return;
   if(supabase) {
     await supabase.auth.signOut();
@@ -77,7 +77,7 @@ async function doLogout() {
 // ════════════════════════════════════════
 // MODE SWITCH
 // ════════════════════════════════════════
-function switchMode(m) {
+window.switchMode = function(m) {
   document.getElementById('dash-mode').style.display = m === 'dashboard' ? 'flex' : 'none';
   document.getElementById('admin-mode').style.display = m === 'admin' ? 'flex' : 'none';
   document.getElementById('mode-dash').classList.toggle('active', m === 'dashboard');
@@ -166,7 +166,7 @@ const DEF_ST = {
   ICU: {RN:['ศิริลักษณ์ แสนอุบล','บุณยวีร์ กลิ่นเพชร์','พัชรา สายกระสุน','เจนจิรา ศรีสงคราม','จิรเนตร พันธุ์คุ้มเก่า','มารศรี จันทราช','ณัฐนนท์ หลายแห่ง','นิศาชล หงษ์หิน','พัชรพร อินทำ','มุยรา ไชบุญญา','สิริกัลยาภรณ์ พลหาญ','วันทนีย์ สารักษ์','เดือนเพ็ญ บุญแก้ว','อุชเชษินี พิจารณ์','ชญานิศ ชัยฤทธิ์'],PN:['อมรา ทองแสง','ทิพย์พวรรณ สวัสดี','วราภรณ์ ดำนิน','รุ่งนภา พวงจำปา','นัทพร แก้วคำชาติ','มณีรุ่ง สิงห์คะนอง','ชลธิชา ยวนยี','วิจิตรา ไตรยะมูล','ปวีณา แสนเสน','ปัณณรัชต์ บุระเนตร','การัติมา ดีบุปผา','ยลดา พัฒนจักร์']},
 };
 
-function mergeStaffFromDefaults() {
+window.mergeStaffFromDefaults = function() {
   ALL_DEPTS.forEach(d => {
     if(!stCfg[d]) stCfg[d] = {RN:[], PN:[]};
     ['RN','PN'].forEach(role => {
@@ -181,7 +181,7 @@ function mergeStaffFromDefaults() {
 // ════════════════════════════════════════
 // STORAGE: SUPABASE + LocalStorage fallback
 // ════════════════════════════════════════
-async function loadFromSupabase() {
+window.loadFromSupabase = async function() {
   if(!supabase) return loadFromLocal();
   try {
     const { data, error } = await supabase.from('ccu_state').select('*').eq('id', 'META').single();
@@ -199,7 +199,7 @@ async function loadFromSupabase() {
   }
 }
 
-async function saveToSupabase() {
+window.saveToSupabase = async function() {
   if(!supabase) return saveToLocal();
   try {
     const { error } = await supabase.from('ccu_state').upsert({
@@ -218,7 +218,7 @@ async function saveToSupabase() {
   }
 }
 
-function loadFromLocal() {
+window.loadFromLocal = function() {
   const d = localStorage.getItem(SK);
   if(d) {
     const data = JSON.parse(d);
@@ -230,7 +230,7 @@ function loadFromLocal() {
   }
 }
 
-function saveToLocal() {
+window.saveToLocal = function() {
   localStorage.setItem(SK, JSON.stringify({
     beds: allBeds,
     wards: wards,
@@ -240,12 +240,12 @@ function saveToLocal() {
   }));
 }
 
-async function persist() {
+window.persist = async function() {
   saveToLocal();
   if(supabase) await saveToSupabase();
 }
 
-async function load() {
+window.load = async function() {
   await loadFromSupabase();
   mergeStaffFromDefaults();
 }
@@ -253,11 +253,11 @@ async function load() {
 // ════════════════════════════════════════
 // BED FUNCTIONS
 // ════════════════════════════════════════
-function emptyBed(id, d) {
+window.emptyBed = function(id, d) {
   return {id, dept:d, dx:[], master:[], consult:[], checks:[], plan:'อยู่ต่อ', rn:''};
 }
 
-function initBeds() {
+window.initBeds = function() {
   if(allBeds.CCU) return;
   ALL_DEPTS.forEach(d => {
     allBeds[d] = {};
@@ -272,7 +272,7 @@ function initBeds() {
   persist();
 }
 
-function openBed(bedId, bedDept) {
+window.openBed = function(bedId, bedDept) {
   editId = bedId;
   editDept = bedDept;
   const b = allBeds[bedDept]?.[bedId] || emptyBed(bedId, bedDept);
@@ -301,12 +301,12 @@ function openBed(bedId, bedDept) {
   document.getElementById('bed-modal').classList.add('open');
 }
 
-function closeBed() {
+window.closeBed = function() {
   document.getElementById('bed-modal').classList.remove('open');
   editId = null;
 }
 
-function updateBedField(key, value) {
+window.updateBedField = function(key, value) {
   if(!editId || !allBeds[editDept]) return;
   if(!allBeds[editDept][editId]) allBeds[editDept][editId] = emptyBed(editId, editDept);
   allBeds[editDept][editId][key] = value;
@@ -314,7 +314,7 @@ function updateBedField(key, value) {
   renderTable();
 }
 
-function addDx() {
+window.addDx = function() {
   const inp = document.getElementById('m-dx-inp');
   const v = inp.value.trim();
   if(v && !editDx.includes(v)) {
@@ -325,13 +325,13 @@ function addDx() {
   }
 }
 
-function remDx(dx) {
+window.remDx = function(dx) {
   editDx = editDx.filter(x => x !== dx);
   updateBedField('dx', editDx);
   renderDxList();
 }
 
-function renderDxList() {
+window.renderDxList = function() {
   document.getElementById('m-dx-list').innerHTML = editDx.map(dx => 
     `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px;">
       ${dxpill(dx)}
@@ -343,7 +343,7 @@ function renderDxList() {
 // ════════════════════════════════════════
 // RENDER
 // ════════════════════════════════════════
-function tick() {
+window.tick = function() {
   const n = new Date();
   document.getElementById('clock').textContent = n.toLocaleTimeString('th-TH', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
   document.getElementById('datef').textContent = `${n.getDate()} ${MONTHS[n.getMonth()]} ${n.getFullYear()+543}`;
@@ -354,18 +354,18 @@ const tpill = t => {const c=TC[t]||TC['ฝากนอน'];return`<span class="
 const planpill = p => {const c=PC[p]||PC['อยู่ต่อ'];const l=PLANS.find(x=>x.v===p)?.l||p;return pill(l,c.bg,c.tx,c.br);};
 const dxpill = dx => {const c=DXC(dx)||{bg:'#e8eef6',tx:'#1a3a6a',br:'#b8cce0'};return pill(dx,c.bg,c.tx,c.br);};
 
-function syncDeptFromSelect() {
+window.syncDeptFromSelect = function() {
   const sel = document.getElementById('dept-sel');
   if(sel) dept = sel.value;
 }
 
-function changeDept() {
+window.changeDept = function() {
   syncDeptFromSelect();
   renderTable();
   renderStaff();
 }
 
-function renderTable() {
+window.renderTable = function() {
   syncDeptFromSelect();
   const isAll = dept === 'ALL';
   const beds = [];
@@ -392,7 +392,7 @@ function renderTable() {
   document.getElementById('st-ref').textContent = beds.filter(b => b.plan === 'refer').length;
 }
 
-function renderRow(b, showDept) {
+window.renderRow = function(b, showDept) {
   const occ = b.dx?.length || b.plan === 'รอรับใหม่';
   return `<tr onclick="openBed('${b.id}','${b.dept}')" style="cursor:pointer;">
     <td style="font-weight:600;color:var(--blue);font-family:monospace;">${b.id}${showDept ? ' ['+b.dept+']' : ''}</td>
@@ -405,7 +405,7 @@ function renderRow(b, showDept) {
   </tr>`;
 }
 
-function renderStaff() {
+window.renderStaff = function() {
   syncDeptFromSelect();
   const d = dept;
   const w = wards[d] || {};
@@ -425,14 +425,14 @@ function renderStaff() {
   if(sePn) sePn.innerHTML = pns.map(n=>`<span class="ch pn">${n}</span>`).join('');
 }
 
-function toggleStaff() {
+window.toggleStaff = function() {
   staffExp = !staffExp;
   document.getElementById('sstrip').style.display = staffExp ? 'none' : 'flex';
   document.getElementById('sexp').style.display = staffExp ? 'block' : 'none';
   if(staffExp) renderStaff();
 }
 
-function openStaff() {
+window.openStaff = function() {
   syncDeptFromSelect();
   const w = wards[dept] || {};
   document.getElementById('w-inc').value = w.inCharge || '';
@@ -445,11 +445,11 @@ function openStaff() {
   document.getElementById('staff-modal').classList.add('open');
 }
 
-function closeStaff() {
+window.closeStaff = function() {
   document.getElementById('staff-modal').classList.remove('open');
 }
 
-function saveStaff() {
+window.saveStaff = function() {
   syncDeptFromSelect();
   wards[dept] = {
     inCharge: document.getElementById('w-inc').value,
@@ -465,7 +465,7 @@ function saveStaff() {
   toast('✓ บันทึกข้อมูลเวร');
 }
 
-function renderST() {
+window.renderST = function() {
   const srnEl = document.getElementById('srn-t');
   const spnEl = document.getElementById('spn-t');
   if(srnEl) srnEl.innerHTML = editSRN.map((n,i) => `<div style="padding:4px 8px;background:#d0eedc;border-radius:4px;font-size:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;"><span>${n}</span><button style="border:none;background:none;cursor:pointer;color:#999;" onclick="editSRN.splice(${i},1);renderST();">✕</button></div>`).join('');
@@ -475,7 +475,7 @@ function renderST() {
 // ════════════════════════════════════════
 // UI HELPERS
 // ════════════════════════════════════════
-function toast(msg, bg) {
+window.toast = function(msg, bg) {
   const n = document.createElement('div');
   n.textContent = msg;
   n.style.cssText = `position:fixed;bottom:18px;right:18px;background:${bg||'#1a6fcc'};color:#fff;padding:9px 16px;border-radius:var(--r);font-size:13px;z-index:9999;animation:fi .3s ease;box-shadow:0 4px 16px rgba(0,0,0,.2);font-family:'Sarabun',sans-serif;max-width:300px;`;
@@ -487,13 +487,13 @@ function toast(msg, bg) {
   }, 3000);
 }
 
-function toggleEmpty() {
+window.toggleEmpty = function() {
   showEmpty = !showEmpty;
   document.getElementById('tbtn').textContent = showEmpty ? 'ซ่อนว่าง' : 'แสดงว่าง';
   renderTable();
 }
 
-function doRefresh() {
+window.doRefresh = function() {
   load().then(() => {
     renderTable();
     renderStaff();
@@ -501,7 +501,7 @@ function doRefresh() {
   });
 }
 
-function gotoPage(p, el) {
+window.gotoPage = function(p, el) {
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.ntab').forEach(x=>x.classList.remove('active'));
   document.getElementById('page-'+p)?.classList.add('active');
@@ -511,21 +511,21 @@ function gotoPage(p, el) {
 // ════════════════════════════════════════
 // STUBS (implement in detail if needed)
 // ════════════════════════════════════════
-function renderDxList() {}
-function renderMasterList() {}
-function renderConsultList() {}
-function renderCheckList() {}
-function loadAll() {}
-function renderHist() {}
-function renderSpecTabs() {}
-function renderDrList() {}
-function addSt(role) {}
-function remSt(role, name) {}
+window.renderDxList = function() {}
+window.renderMasterList = function() {}
+window.renderConsultList = function() {}
+window.renderCheckList = function() {}
+window.loadAll = function() {}
+window.renderHist = function() {}
+window.renderSpecTabs = function() {}
+window.renderDrList = function() {}
+window.addSt = function(role) {}
+window.remSt = function(role, name) {}
 
 // ════════════════════════════════════════
 // APP INIT
 // ════════════════════════════════════════
-async function initApp() {
+window.initApp = async function() {
   await load();
   initBeds();
   setInterval(tick, 1000);
