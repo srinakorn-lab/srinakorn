@@ -207,7 +207,7 @@
     </div>
     <!-- RN + OR/CC -->
     <div class="g2">
-      <div><label class="flbl">RN เวร</label><input class="ipt" id="m-rn" placeholder="ชื่อ RN..."></div>
+      <div><label class="flbl">RN เวร</label><input list="rn-dl" class="ipt" id="m-rn" placeholder="พิมพ์ชื่อ RN... (มี autocomplete)"></div>
       <div></div>
     </div>
     <div>
@@ -347,18 +347,27 @@
   <div id="tr-header">
     <div>
       <div class="hdr-title"><span class="ldot"></span> สรุปการย้ายวอร์ด</div>
-      <div class="hdr-sub">ภาพรวมผู้ป่วยที่กำลังย้ายไปวอร์ดอื่น — ทุกแผนก · กดที่การ์ดเพื่อแก้ไข</div>
+      <div class="hdr-sub">ภาพรวมผู้ป่วยที่กำลังย้ายไปวอร์ดอื่น — กดที่การ์ดเพื่อแก้ไข</div>
     </div>
     <button class="bsm" onclick="renderTransferDashboard()" style="white-space:nowrap;">🔄 รีเฟรช</button>
+  </div>
+  <div class="tr-deptbar">
+    <span style="font-size:12px;color:var(--txd);font-weight:600;">แผนก:</span>
+    <button class="tr-dept-btn on" data-dept="ALL" onclick="setTransferDeptFilter('ALL')">📊 รวมทั้งหมด</button>
+    <button class="tr-dept-btn" data-dept="CCU" onclick="setTransferDeptFilter('CCU')">CCU</button>
+    <button class="tr-dept-btn" data-dept="NCU" onclick="setTransferDeptFilter('NCU')">NCU</button>
+    <button class="tr-dept-btn" data-dept="ICU" onclick="setTransferDeptFilter('ICU')">ICU</button>
   </div>
   <div id="tr-summary"></div>
   <div id="tr-body">
     <div class="tr-col">
-      <div class="tr-col-title" style="color:var(--ambl);"><span style="font-size:18px;">🟡</span> รอห้อง</div>
+      <div class="tr-col-title" style="color:var(--ambl);"><span style="font-size:18px;">🟡</span> รอห้อง <span id="tr-wait-cnt" style="font-size:13px;color:var(--txd);font-weight:500;"></span></div>
+      <div id="tr-wait-summary"></div>
       <div id="tr-waiting"></div>
     </div>
     <div class="tr-col">
-      <div class="tr-col-title" style="color:var(--blue);"><span style="font-size:18px;">🔵</span> ได้ห้องแล้ว</div>
+      <div class="tr-col-title" style="color:var(--blue);"><span style="font-size:18px;">🔵</span> ได้ห้องแล้ว <span id="tr-got-cnt" style="font-size:13px;color:var(--txd);font-weight:500;"></span></div>
+      <div id="tr-got-summary"></div>
       <div id="tr-got"></div>
     </div>
   </div>
