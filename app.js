@@ -138,11 +138,11 @@ function mergeStaffFromDefaults() {
 // STORAGE — Supabase + localStorage fallback
 // ════════════════════════════════════════
 function emptyBed(id, d) {
-  return {id, dept:d, deptType:(DEPTS[d]?.types[0]||''), dx:[], patientCode:'', master:'', consult:[], rn:'', plan:'อยู่ต่อ', checks:[], transferWard:'', transferRoom:'', transferBed:'', transferRoomType:'', gender:'', age:'', admitDate:'', los:'', orNote:'', ccNote:'', presentNote:''};
+  return {id, dept:d, deptType:(DEPTS[d]?.types[0]||''), dx:[], patientCode:'', master:'', consult:[], rn:'', plan:'อยู่ต่อ', checks:[], transferWard:'', transferRoom:'', transferBed:'', transferRoomType:'', transferMonitor:'', transferGenderPref:'', transferTime:'', gender:'', age:'', admitDate:'', los:'', orNote:'', ccNote:'', presentNote:'', class:''};
 }
 function sanitizeBedPrivacy(b) {
-  const {id,dept:d,deptType,dx,patientCode,master,consult,rn,plan,checks,transferWard,transferRoom,transferBed,transferRoomType,gender,age,admitDate,los,orNote,ccNote,presentNote} = b;
-  return {id,dept:d,deptType,dx:dx||[],patientCode:patientCode||'',master:master||'',consult:consult||[],rn:rn||'',plan:plan||'อยู่ต่อ',checks:checks||[],transferWard:transferWard||'',transferRoom:transferRoom||'',transferBed:transferBed||'',transferRoomType:transferRoomType||'',gender:gender||'',age:age||'',admitDate:admitDate||'',los:los||'',orNote:orNote||'',ccNote:ccNote||'',presentNote:presentNote||''};
+  const {id,dept:d,deptType,dx,patientCode,master,consult,rn,plan,checks,transferWard,transferRoom,transferBed,transferRoomType,transferMonitor,transferGenderPref,transferTime,gender,age,admitDate,los,orNote,ccNote,presentNote} = b;
+  return {id,dept:d,deptType,dx:dx||[],patientCode:patientCode||'',master:master||'',consult:consult||[],rn:rn||'',plan:plan||'อยู่ต่อ',checks:checks||[],transferWard:transferWard||'',transferRoom:transferRoom||'',transferBed:transferBed||'',transferRoomType:transferRoomType||'',transferMonitor:transferMonitor||'',transferGenderPref:transferGenderPref||'',transferTime:transferTime||'',gender:gender||'',age:age||'',admitDate:admitDate||'',los:los||'',orNote:orNote||'',ccNote:ccNote||'',presentNote:presentNote||'',class:b.class||''};
 }
 function initBeds() {
   ALL_DEPTS.forEach(d => {
@@ -362,7 +362,11 @@ async function setupRealtime() {
   if(!sb) return;
   sb.channel('ccu_realtime')
     .on('postgres_changes', {event:'*', schema:'public', table:'ccu_state'}, payload => {
-      load().then(() => { renderTable(); renderStaff(); toast('🔄 ข้อมูลอัปเดต (realtime)','#1a6fcc'); });
+      load().then(() => {
+        renderTable(); renderStaff();
+        if(document.getElementById('transfer-mode')?.style.display === 'flex') renderTransferDashboard();
+        toast('🔄 ข้อมูลอัปเดต (realtime)','#1a6fcc');
+      });
     })
     .subscribe();
 }
@@ -373,10 +377,13 @@ async function setupRealtime() {
 function switchMode(m) {
   document.getElementById('dash-mode').style.display = m === 'dashboard' ? 'flex' : 'none';
   document.getElementById('admin-mode').style.display = m === 'admin' ? 'flex' : 'none';
+  const tm = document.getElementById('transfer-mode'); if(tm) tm.style.display = m === 'transfer' ? 'flex' : 'none';
   document.getElementById('mode-dash').classList.toggle('active', m === 'dashboard');
   document.getElementById('mode-admin').classList.toggle('active', m === 'admin');
+  const mtBtn = document.getElementById('mode-transfer'); if(mtBtn) mtBtn.classList.toggle('active', m === 'transfer');
   if(m === 'dashboard') { renderTable(); renderStaff(); }
   if(m === 'admin') { loadAll().then(() => { renderHist(); renderSpecTabs(); renderDrList(); renderAdminStaffList(); }); }
+  if(m === 'transfer') { load().then(() => renderTransferDashboard()); }
 }
 
 // ════════════════════════════════════════
@@ -582,6 +589,7 @@ function renderRow(b, showDept) {
   if(b.plan==='ย้าย ward ได้ห้องแล้ว'&&(b.transferRoom||b.transferWard)) planX=`<div style="font-size:10px;color:var(--blue);margin-top:2px;">Ward ${b.transferWard} ห้อง ${b.transferRoom}${b.transferBed?' เตียง '+b.transferBed:''}</div>`;
   const rb = complete===false?'#f0b8b8':'#d8e4ef';
   const gb = b.gender ? `<span class="${b.gender==='ชาย'?'gbm':'gbf'}">${b.gender==='ชาย'?'ช':'ญ'}</span> ` : '';
+  const clsH = b.class ? (()=>{const c=CLASS_COLORS[String(b.class)]; if(!c) return ''; return ` <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:${c.bg};color:${c.tx};border:1px solid ${c.br};margin-left:3px;" title="${c.l}">C${b.class}</span>`;})() : '';
   const dxHtml = (b.dx||[]).length ? `<div class="dxrow">${(b.dx||[]).map(d=>dxpill(d)).join('')}</div>` : b.plan==='รอรับใหม่' ? pill('รอรับใหม่','#f8e0e8','#8a1a3a','#d87aaa') : `<span style="color:var(--txm);font-size:11px;">—</span>`;
   const d = bedDept(b);
   const openFn = showDept ? `openBed('${d}','${b.id}')` : `openBed('${b.id}')`;
@@ -589,7 +597,7 @@ function renderRow(b, showDept) {
   return `<tr onclick="${openFn}" style="border-bottom:1px solid ${rb};">
     ${deptCell}
     <td style="padding:7px 8px;"><div class="bedc" style="background:${occ?'#1a6fcc':'#d8e8f4'};color:${occ?'#fff':'#8aabcc'};">${b.id}</div>${occ&&b.deptType?`<div style="text-align:center;margin-top:2px;">${tpill(b.deptType)}</div>`:''}</td>
-    <td style="padding:7px 8px;">${occ?`${gb}${b.age?`<span style="font-size:11px;color:var(--txd);">${b.age} ปี</span>`:''}${b.los?`<span style="font-size:10px;color:var(--txd);margin-left:4px;">LOS ${b.los}d</span>`:''}<div style="font-size:10px;color:var(--txm);">${b.admitDate?'Admit '+b.admitDate:''}</div>${b.patientCode?`<span style="background:var(--purd);color:var(--pur);border:1px solid var(--pur);border-radius:999px;padding:1px 5px;font-size:10px;">${b.patientCode}</span>`:''}${b.rn?`<div style="font-size:10px;color:#0e8060;margin-top:2px;">RN: ${b.rn}</div>`:''}`:''}
+    <td style="padding:7px 8px;">${occ?`${gb}${b.age?`<span style="font-size:11px;color:var(--txd);">${b.age} ปี</span>`:''}${clsH}${b.los?`<span style="font-size:10px;color:var(--txd);margin-left:4px;">LOS ${b.los}d</span>`:''}<div style="font-size:10px;color:var(--txm);">${b.admitDate?'Admit '+b.admitDate:''}</div>${b.patientCode?`<span style="background:var(--purd);color:var(--pur);border:1px solid var(--pur);border-radius:999px;padding:1px 5px;font-size:10px;">${b.patientCode}</span>`:''}${b.rn?`<div style="font-size:10px;color:#0e8060;margin-top:2px;">RN: ${b.rn}</div>`:''}`:''}
     </td>
     <td style="padding:7px 8px;">${dxHtml}</td>
     <td style="padding:7px 8px;font-size:12px;">${mh||`<span style="color:var(--txm);">—</span>`}</td>
@@ -636,6 +644,7 @@ function openBed(d, id) {
   renderMasterTag(b.master||'');
   renderConsTags();
   document.getElementById('m-rn').value = b.rn||'';
+  buildClassBtns(b.class||'');
   buildPlanBtns(b.plan||'อยู่ต่อ');
   updatePlanExtra(b); buildChk(b.plan||'อยู่ต่อ');
   document.getElementById('bed-modal').classList.add('open');
@@ -670,8 +679,52 @@ function updatePlanExtra(b) {
   const r=b.plan==='ย้ายward รอห้อง', g=b.plan==='ย้าย ward ได้ห้องแล้ว';
   document.getElementById('box-rt').style.display=r?'block':'none';
   document.getElementById('box-dest').style.display=g?'block':'none';
-  if(r) document.getElementById('m-rtype').value=b.transferRoomType||'';
+  if(r) {
+    buildRoomTypeBtns(b.transferRoomType||'');
+    const monEl = document.getElementById('m-mon'); if(monEl) monEl.value = b.transferMonitor || '';
+    const tgEl = document.getElementById('m-tgen'); if(tgEl) tgEl.value = b.transferGenderPref || b.gender || '';
+  }
   if(g) { document.getElementById('m-tw').value=b.transferWard||''; buildRooms(b.transferWard||''); setTimeout(()=>{document.getElementById('m-tr').value=b.transferRoom||''; document.getElementById('m-tbed').value=b.transferBed||'';},30); }
+}
+// Class 1-5 buttons (severity)
+const CLASS_COLORS = {
+  '1':{bg:'#d0eedc',tx:'#0a5030',br:'#6ec8a0',l:'1 — น้อย'},
+  '2':{bg:'#d8eaf8',tx:'#1a3a6a',br:'#7ab0d8',l:'2 — เฝ้า'},
+  '3':{bg:'#fff3d0',tx:'#7a5200',br:'#e0a020',l:'3 — ปานกลาง'},
+  '4':{bg:'#fce8d8',tx:'#6a3010',br:'#d08040',l:'4 — รุนแรง'},
+  '5':{bg:'#fce8e8',tx:'#8a1a1a',br:'#d07070',l:'5 — วิกฤต'}
+};
+function buildClassBtns(sel) {
+  const el = document.getElementById('class-btns');
+  if(!el) return;
+  el.innerHTML = ['1','2','3','4','5'].map(n=>{
+    const c = CLASS_COLORS[n]; const s = String(sel)===n;
+    return `<button type="button" onclick="selClass('${n}')" style="padding:6px 14px;border-radius:var(--r);border:1.5px solid ${s?c.br:'var(--bdr)'};background:${s?c.bg:'var(--surf2)'};color:${s?c.tx:'var(--txd)'};font-size:14px;cursor:pointer;font-weight:${s?700:500};font-family:inherit;min-width:38px;">${n}</button>`;
+  }).join('') + `<button type="button" onclick="selClass('')" style="padding:5px 10px;border-radius:var(--r);border:1px solid var(--bdr);background:none;color:var(--txm);font-size:11px;cursor:pointer;font-family:inherit;margin-left:4px;">ล้าง</button>`;
+  document.getElementById('m-class').value = sel || '';
+}
+function selClass(n) {
+  document.getElementById('m-class').value = n || '';
+  buildClassBtns(n || '');
+}
+// Room type buttons (รวม / เดี่ยว / suite)
+const ROOM_TYPE_OPTS = [
+  {v:'รวม', l:'1. รวม',     icon:'🏠'},
+  {v:'เดี่ยว', l:'2. เดี่ยว', icon:'🚪'},
+  {v:'suite', l:'3. Suite',   icon:'🛋'}
+];
+function buildRoomTypeBtns(sel) {
+  const el = document.getElementById('rt-btns');
+  if(!el) return;
+  el.innerHTML = ROOM_TYPE_OPTS.map(o=>{
+    const s = sel===o.v;
+    return `<button type="button" onclick="selRoomType('${o.v}')" style="padding:8px 14px;border-radius:var(--r);border:1.5px solid ${s?'var(--ambl)':'var(--bdr)'};background:${s?'var(--ambd)':'var(--surf2)'};color:${s?'var(--ambl)':'var(--txd)'};font-size:13px;cursor:pointer;font-weight:${s?700:500};font-family:inherit;flex:1;min-width:90px;">${o.icon} ${o.l}</button>`;
+  }).join('');
+  document.getElementById('m-rtype').value = sel || '';
+}
+function selRoomType(v) {
+  document.getElementById('m-rtype').value = v || '';
+  buildRoomTypeBtns(v || '');
 }
 function buildRooms(w) { const rooms=RWD[w]||[]; document.getElementById('m-tr').innerHTML='<option value="">— ห้อง —</option>'+rooms.map(r=>`<option>${r}</option>`).join(''); }
 function buildChk(plan) {
@@ -724,8 +777,43 @@ function saveBed(){
   const plan=document.getElementById('m-plan').value||'อยู่ต่อ';
   if(!allBeds[editDept]) allBeds[editDept]={};
   const cur=allBeds[editDept][editId]||emptyBed(editId,editDept);
-  allBeds[editDept][editId]=sanitizeBedPrivacy({...cur,gender:document.getElementById('m-gen').value,age:document.getElementById('m-age').value,patientCode:document.getElementById('m-code').value,admitDate:document.getElementById('m-admit').value,los:document.getElementById('m-los').value.trim(),orNote:document.getElementById('m-or').value.trim(),ccNote:document.getElementById('m-cc').value.trim(),presentNote:document.getElementById('m-present').value.trim(),dx:[...editDx],master:document.getElementById('m-mv').value||document.getElementById('m-mi').value,consult:[...editConsults],rn:document.getElementById('m-rn').value,plan,checks:[...editChecks],transferRoomType:document.getElementById('m-rtype').value||'',transferWard:document.getElementById('m-tw').value||'',transferRoom:document.getElementById('m-tr').value||'',transferBed:document.getElementById('m-tbed').value||''});
+  // ตีตราเวลาเมื่อเข้าสู่สถานะ "ย้ายward รอห้อง" หรือ "ย้าย ward ได้ห้องแล้ว"
+  let transferTime = cur.transferTime || '';
+  const isTransferPlan = plan==='ย้ายward รอห้อง' || plan==='ย้าย ward ได้ห้องแล้ว';
+  const wasTransferPlan = cur.plan==='ย้ายward รอห้อง' || cur.plan==='ย้าย ward ได้ห้องแล้ว';
+  if(isTransferPlan && (!wasTransferPlan || cur.plan !== plan)) {
+    transferTime = new Date().toISOString();
+  } else if(!isTransferPlan) {
+    transferTime = '';
+  }
+  allBeds[editDept][editId]=sanitizeBedPrivacy({
+    ...cur,
+    gender:document.getElementById('m-gen').value,
+    age:document.getElementById('m-age').value,
+    patientCode:document.getElementById('m-code').value,
+    admitDate:document.getElementById('m-admit').value,
+    los:document.getElementById('m-los').value.trim(),
+    orNote:document.getElementById('m-or').value.trim(),
+    ccNote:document.getElementById('m-cc').value.trim(),
+    presentNote:document.getElementById('m-present').value.trim(),
+    dx:[...editDx],
+    master:document.getElementById('m-mv').value||document.getElementById('m-mi').value,
+    consult:[...editConsults],
+    rn:document.getElementById('m-rn').value,
+    plan,
+    checks:[...editChecks],
+    class:document.getElementById('m-class')?.value || '',
+    transferRoomType:document.getElementById('m-rtype').value||'',
+    transferMonitor:document.getElementById('m-mon')?.value||'',
+    transferGenderPref:document.getElementById('m-tgen')?.value||'',
+    transferTime,
+    transferWard:document.getElementById('m-tw').value||'',
+    transferRoom:document.getElementById('m-tr').value||'',
+    transferBed:document.getElementById('m-tbed').value||''
+  });
   persist();renderTable();closeBed();
+  // ถ้ามีหน้าสรุปย้ายวอร์ดเปิดอยู่ ให้รีเฟรชด้วย
+  if(document.getElementById('transfer-mode')?.style.display === 'flex') renderTransferDashboard();
   if(['D/C','refer'].includes(plan)){const cl=CL[plan]||[];if(cl.length&&cl.every(i=>(allBeds[editDept][editId]?.checks||[]).includes(i.id)))setTimeout(autoClear,600);}
 }
 
@@ -876,6 +964,103 @@ function delSt(role,name){if(!stCfg[curSD])return;if(!stCfg[curSD][role])return;
 function renderAdminStaffList(){const sc2=stCfg[curSD]||{RN:[],PN:[]};['RN','PN'].forEach(role=>{const el=document.getElementById(role.toLowerCase()+'-list');if(!el)return;const list=sc2[role]||[];el.innerHTML=list.length?list.map(n=>`<div class="li"><span class="nm">${n}</span><button class="del" data-role="${role}" data-name="${n.replace(/"/g,'&quot;')}">✕</button></div>`).join(''):`<div style="padding:12px;text-align:center;color:var(--txm);font-size:12px;">ยังไม่มีรายชื่อ</div>`;el.querySelectorAll('.del').forEach(btn=>{btn.onclick=function(){delSt(this.dataset.role,this.dataset.name);};});});}
 
 // ════════════════════════════════════════
+// TRANSFER DASHBOARD (สรุปย้ายวอร์ด)
+// แสดงผู้ป่วยที่ "ย้ายward รอห้อง" และ "ย้าย ward ได้ห้องแล้ว"
+// ทุกแผนกในหน้าเดียว แก้ไขได้
+// ════════════════════════════════════════
+function getAllTransferBeds() {
+  const out = [];
+  ALL_DEPTS.forEach(d => {
+    Object.values(allBeds[d]||{}).forEach(b => {
+      if(b.plan === 'ย้ายward รอห้อง' || b.plan === 'ย้าย ward ได้ห้องแล้ว') {
+        out.push({...b, _dept:d});
+      }
+    });
+  });
+  return out;
+}
+function timeAgo(iso) {
+  if(!iso) return '—';
+  try {
+    const t = new Date(iso); if(isNaN(t)) return '—';
+    const diff = (Date.now() - t.getTime()) / 1000;
+    if(diff < 60) return `${Math.floor(diff)} วินาทีที่แล้ว`;
+    if(diff < 3600) return `${Math.floor(diff/60)} นาทีที่แล้ว`;
+    if(diff < 86400) return `${Math.floor(diff/3600)} ชม.ที่แล้ว`;
+    return `${Math.floor(diff/86400)} วันที่แล้ว`;
+  } catch { return '—'; }
+}
+function renderTransferDashboard() {
+  const waiting = getAllTransferBeds().filter(b => b.plan === 'ย้ายward รอห้อง');
+  const got = getAllTransferBeds().filter(b => b.plan === 'ย้าย ward ได้ห้องแล้ว');
+  // Summary counts
+  const sum = document.getElementById('tr-summary');
+  if(sum) {
+    const byDeptWait = ALL_DEPTS.map(d=>{const n=waiting.filter(b=>b._dept===d).length;return `${deptPill(d)} ${n}`;}).join(' ');
+    const byDeptGot  = ALL_DEPTS.map(d=>{const n=got.filter(b=>b._dept===d).length;return `${deptPill(d)} ${n}`;}).join(' ');
+    sum.innerHTML = `
+      <div class="tr-sum-card" style="border-color:var(--ambl);">
+        <div class="tr-sum-lbl" style="color:var(--ambl);">🟡 รอห้อง</div>
+        <div class="tr-sum-val">${waiting.length}</div>
+        <div class="tr-sum-brk">${byDeptWait}</div>
+      </div>
+      <div class="tr-sum-card" style="border-color:var(--blue);">
+        <div class="tr-sum-lbl" style="color:var(--blue);">🔵 ได้ห้องแล้ว</div>
+        <div class="tr-sum-val">${got.length}</div>
+        <div class="tr-sum-brk">${byDeptGot}</div>
+      </div>
+      <div class="tr-sum-card" style="border-color:var(--teal);">
+        <div class="tr-sum-lbl" style="color:var(--teal);">📊 รวม</div>
+        <div class="tr-sum-val">${waiting.length + got.length}</div>
+        <div class="tr-sum-brk">ผู้ป่วยที่กำลังย้ายวอร์ด</div>
+      </div>`;
+  }
+  document.getElementById('tr-waiting').innerHTML = waiting.length
+    ? waiting.map(renderTransferCard).join('')
+    : '<div class="tr-empty">ไม่มีผู้ป่วยที่รอห้อง</div>';
+  document.getElementById('tr-got').innerHTML = got.length
+    ? got.map(renderTransferCard).join('')
+    : '<div class="tr-empty">ไม่มีผู้ป่วยที่ได้ห้องแล้ว</div>';
+}
+function renderTransferCard(b) {
+  const d = b._dept;
+  const clsH = b.class ? (()=>{const c=CLASS_COLORS[String(b.class)]; if(!c) return ''; return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:${c.bg};color:${c.tx};border:1px solid ${c.br};">C${b.class}</span>`;})() : '';
+  const gb = b.gender ? `<span class="${b.gender==='ชาย'?'gbm':'gbf'}">${b.gender==='ชาย'?'ช':'ญ'}</span>` : '';
+  const dxH = (b.dx||[]).slice(0,2).map(dx=>dxpill(dx)).join(' ');
+  const moreDx = (b.dx||[]).length > 2 ? `<span style="font-size:10px;color:var(--txd);">+${b.dx.length-2}</span>` : '';
+  const ago = b.transferTime ? `<span style="font-size:11px;color:var(--txd);">⏱ ${timeAgo(b.transferTime)}</span>` : '';
+  let detail = '';
+  if(b.plan === 'ย้ายward รอห้อง') {
+    const rt = b.transferRoomType ? `<span style="background:var(--ambd);color:var(--ambl);border:1px solid #e0a020;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:600;">🏠 ${b.transferRoomType}</span>` : '';
+    const mon = b.transferMonitor ? `<span style="background:var(--blued);color:var(--blue);border:1px solid var(--blue);border-radius:4px;padding:2px 8px;font-size:11px;">📺 ${b.transferMonitor}</span>` : '';
+    const tgen = b.transferGenderPref ? `<span style="background:${b.transferGenderPref==='ชาย'?'#d0e8f8':'#f8d8e8'};color:${b.transferGenderPref==='ชาย'?'#1a3a6a':'#6a1a3a'};border:1px solid ${b.transferGenderPref==='ชาย'?'#7ab0d8':'#d87aaa'};border-radius:4px;padding:2px 8px;font-size:11px;">👤 ${b.transferGenderPref}</span>` : '';
+    detail = `<div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;">${rt}${mon}${tgen}${!rt && !mon && !tgen ? '<span style="color:var(--txm);font-size:11px;">ยังไม่ได้ระบุประเภทห้อง</span>' : ''}</div>`;
+  } else {
+    const dest = (b.transferWard || b.transferRoom) ? `<div style="margin-top:6px;background:var(--blued);border:1px solid var(--blue);border-radius:var(--r);padding:6px 10px;font-size:12px;color:var(--blue);font-weight:600;">📍 Ward ${b.transferWard||'—'} · ห้อง ${b.transferRoom||'—'}${b.transferBed?' · เตียง '+b.transferBed:''}</div>` : '';
+    detail = dest;
+  }
+  return `
+    <div class="tr-card" onclick="openBed('${d}','${b.id}')">
+      <div class="tr-card-head">
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+          ${deptPill(d)}
+          <span class="bedc" style="width:34px;height:34px;font-size:13px;background:#1a6fcc;color:#fff;">${b.id}</span>
+          ${b.deptType ? tpill(b.deptType) : ''}
+          ${clsH}
+        </div>
+        ${ago}
+      </div>
+      <div style="margin-top:6px;font-size:12px;color:var(--tx);">
+        ${gb} ${b.age?b.age+' ปี':''} ${b.los?`<span style="color:var(--txd);">· LOS ${b.los}d</span>`:''}
+        ${b.rn?`<span style="color:#0e8060;margin-left:6px;">RN: ${b.rn}</span>`:''}
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;">${dxH}${moreDx}</div>
+      ${b.master?`<div style="font-size:11px;color:var(--blue);margin-top:4px;">M: ${b.master}</div>`:''}
+      ${detail}
+    </div>`;
+}
+
+// ════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════
 function initApp() {
@@ -886,14 +1071,14 @@ function initApp() {
     changeDept(); tick(); setInterval(tick, 1000);
     setupRealtime();
     // BroadcastChannel fallback (same-origin tabs without Supabase)
-    try { const bc=new BroadcastChannel('ccu_bc'); bc.onmessage=()=>{load().then(()=>{renderTable();renderStaff();toast('🔄 ข้อมูลอัปเดต','#1a6fcc');});}; } catch{}
+    try { const bc=new BroadcastChannel('ccu_bc'); bc.onmessage=()=>{load().then(()=>{renderTable();renderStaff();if(document.getElementById('transfer-mode')?.style.display==='flex')renderTransferDashboard();toast('🔄 ข้อมูลอัปเดต','#1a6fcc');});}; } catch{}
     // Auto-refresh countdown
     const TOTAL = 300; let cd = TOTAL;
     const el = document.getElementById('cdt');
     setInterval(() => {
       if(autoRefreshPaused){if(el)el.textContent='⏸ พักรีเฟรช';return;}
       cd--;
-      if(cd <= 0) { load().then(()=>{renderTable();renderStaff();autoClear();}); cd=TOTAL; toast('🔄 รีเฟรชอัตโนมัติ','#1a6fcc'); }
+      if(cd <= 0) { load().then(()=>{renderTable();renderStaff();autoClear();if(document.getElementById('transfer-mode')?.style.display==='flex')renderTransferDashboard();}); cd=TOTAL; toast('🔄 รีเฟรชอัตโนมัติ','#1a6fcc'); }
       const m=Math.floor(cd/60),s=cd%60;
       if(el) el.textContent=`🔄 ${m}:${String(s).padStart(2,'0')}`;
     }, 1000);
