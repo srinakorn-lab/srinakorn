@@ -98,7 +98,7 @@ const SC = {
 // ════════════════════════════════════════
 let dept = 'CCU', editDept = 'CCU', showEmpty = false, staffExp = false, swapMode = 'swap';
 let allBeds = {}, wards = {}, stCfg = {}, doctors = [];
-let editId = null, editChecks = [], editConsults = [], editDx = [], editSRN = [], editSPN = [];
+let editId = null, editChecks = [], editConsults = [], editDx = [], editSRN = [], editSPN = [], editClass5Items = [];
 let rptHist = [], parsedBeds = [], selHistIdx = -1;
 let curSpec = 'All', curWt = 'all', curSD = 'CCU', curMode = 'offline';
 let ncuWorkbook = null, ncuFileName = '';
@@ -138,11 +138,11 @@ function mergeStaffFromDefaults() {
 // STORAGE — Supabase + localStorage fallback
 // ════════════════════════════════════════
 function emptyBed(id, d) {
-  return {id, dept:d, deptType:(DEPTS[d]?.types[0]||''), dx:[], patientCode:'', master:'', consult:[], rn:'', plan:'อยู่ต่อ', checks:[], transferWard:'', transferRoom:'', transferBed:'', transferRoomType:'', transferMonitor:'', transferGenderPref:'', transferTime:'', gender:'', age:'', admitDate:'', los:'', orNote:'', ccNote:'', presentNote:'', class:''};
+  return {id, dept:d, deptType:(DEPTS[d]?.types[0]||''), dx:[], patientCode:'', master:'', consult:[], rn:'', plan:'อยู่ต่อ', checks:[], transferWard:'', transferRoom:'', transferBed:'', transferRoomType:'', transferMonitor:'', transferGenderPref:'', transferTime:'', gender:'', age:'', admitDate:'', los:'', orNote:'', ccNote:'', presentNote:'', class:'', class5Items:[], class5Other:''};
 }
 function sanitizeBedPrivacy(b) {
   const {id,dept:d,deptType,dx,patientCode,master,consult,rn,plan,checks,transferWard,transferRoom,transferBed,transferRoomType,transferMonitor,transferGenderPref,transferTime,gender,age,admitDate,los,orNote,ccNote,presentNote} = b;
-  return {id,dept:d,deptType,dx:dx||[],patientCode:patientCode||'',master:master||'',consult:consult||[],rn:rn||'',plan:plan||'อยู่ต่อ',checks:checks||[],transferWard:transferWard||'',transferRoom:transferRoom||'',transferBed:transferBed||'',transferRoomType:transferRoomType||'',transferMonitor:transferMonitor||'',transferGenderPref:transferGenderPref||'',transferTime:transferTime||'',gender:gender||'',age:age||'',admitDate:admitDate||'',los:los||'',orNote:orNote||'',ccNote:ccNote||'',presentNote:presentNote||'',class:b.class||''};
+  return {id,dept:d,deptType,dx:dx||[],patientCode:patientCode||'',master:master||'',consult:consult||[],rn:rn||'',plan:plan||'อยู่ต่อ',checks:checks||[],transferWard:transferWard||'',transferRoom:transferRoom||'',transferBed:transferBed||'',transferRoomType:transferRoomType||'',transferMonitor:transferMonitor||'',transferGenderPref:transferGenderPref||'',transferTime:transferTime||'',gender:gender||'',age:age||'',admitDate:admitDate||'',los:los||'',orNote:orNote||'',ccNote:ccNote||'',presentNote:presentNote||'',class:b.class||'',class5Items:Array.isArray(b.class5Items)?b.class5Items:[],class5Other:b.class5Other||''};
 }
 function initBeds() {
   ALL_DEPTS.forEach(d => {
@@ -589,7 +589,20 @@ function renderRow(b, showDept) {
   if(b.plan==='ย้าย ward ได้ห้องแล้ว'&&(b.transferRoom||b.transferWard)) planX=`<div style="font-size:10px;color:var(--blue);margin-top:2px;">Ward ${b.transferWard} ห้อง ${b.transferRoom}${b.transferBed?' เตียง '+b.transferBed:''}</div>`;
   const rb = complete===false?'#f0b8b8':'#d8e4ef';
   const gb = b.gender ? `<span class="${b.gender==='ชาย'?'gbm':'gbf'}">${b.gender==='ชาย'?'ช':'ญ'}</span> ` : '';
-  const clsH = b.class ? (()=>{const c=CLASS_COLORS[String(b.class)]; if(!c) return ''; return ` <span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:${c.bg};color:${c.tx};border:1px solid ${c.br};margin-left:3px;" title="${c.l}">C${b.class}</span>`;})() : '';
+  // Class pill (C1-C5) — shown AFTER Dx
+  const clsTag = b.class ? (()=>{
+    const c = CLASS_COLORS[String(b.class)]; if(!c) return '';
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;background:${c.bg};color:${c.tx};border:1px solid ${c.br};" title="${c.l}">C${b.class}</span>`;
+  })() : '';
+  // Class 5 critical items — shown only when class=5
+  const c5ItemsHtml = (String(b.class)==='5' && (b.class5Items||[]).length) ? (b.class5Items.map(id=>{
+    const opt = CLASS5_OPTIONS.find(o=>o.id===id);
+    return opt ? `<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#fce8e8;color:#8a1a1a;border:1px solid #d88080;" title="${opt.l}">${opt.icon} ${opt.l}</span>` : '';
+  }).join('')) : '';
+  const c5OtherHtml = (String(b.class)==='5' && b.class5Other) ? `<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#fce8e8;color:#8a1a1a;border:1px solid #d88080;">+ ${b.class5Other}</span>` : '';
+  const classRow = (clsTag || c5ItemsHtml || c5OtherHtml)
+    ? `<div style="margin-top:5px;display:flex;flex-wrap:wrap;gap:3px;align-items:center;">${clsTag}${c5ItemsHtml}${c5OtherHtml}</div>`
+    : '';
   const dxHtml = (b.dx||[]).length ? `<div class="dxrow">${(b.dx||[]).map(d=>dxpill(d)).join('')}</div>` : b.plan==='รอรับใหม่' ? pill('รอรับใหม่','#f8e0e8','#8a1a3a','#d87aaa') : `<span style="color:var(--txm);font-size:11px;">—</span>`;
   const d = bedDept(b);
   const openFn = showDept ? `openBed('${d}','${b.id}')` : `openBed('${b.id}')`;
@@ -597,9 +610,9 @@ function renderRow(b, showDept) {
   return `<tr onclick="${openFn}" style="border-bottom:1px solid ${rb};">
     ${deptCell}
     <td style="padding:7px 8px;"><div class="bedc" style="background:${occ?'#1a6fcc':'#d8e8f4'};color:${occ?'#fff':'#8aabcc'};">${b.id}</div>${occ&&b.deptType?`<div style="text-align:center;margin-top:2px;">${tpill(b.deptType)}</div>`:''}</td>
-    <td style="padding:7px 8px;">${occ?`${gb}${b.age?`<span style="font-size:11px;color:var(--txd);">${b.age} ปี</span>`:''}${clsH}${b.los?`<span style="font-size:10px;color:var(--txd);margin-left:4px;">LOS ${b.los}d</span>`:''}<div style="font-size:10px;color:var(--txm);">${b.admitDate?'Admit '+b.admitDate:''}</div>${b.patientCode?`<span style="background:var(--purd);color:var(--pur);border:1px solid var(--pur);border-radius:999px;padding:1px 5px;font-size:10px;">${b.patientCode}</span>`:''}${b.rn?`<div style="font-size:10px;color:#0e8060;margin-top:2px;">RN: ${b.rn}</div>`:''}`:''}
+    <td style="padding:7px 8px;">${occ?`${gb}${b.age?`<span style="font-size:11px;color:var(--txd);">${b.age} ปี</span>`:''}${b.los?`<span style="font-size:10px;color:var(--txd);margin-left:4px;">LOS ${b.los}d</span>`:''}<div style="font-size:10px;color:var(--txm);">${b.admitDate?'Admit '+b.admitDate:''}</div>${b.patientCode?`<span style="background:var(--purd);color:var(--pur);border:1px solid var(--pur);border-radius:999px;padding:1px 5px;font-size:10px;">${b.patientCode}</span>`:''}${b.rn?`<div style="font-size:10px;color:#0e8060;margin-top:2px;">RN: ${b.rn}</div>`:''}`:''}
     </td>
-    <td style="padding:7px 8px;">${dxHtml}</td>
+    <td style="padding:7px 8px;">${dxHtml}${classRow}</td>
     <td style="padding:7px 8px;font-size:12px;">${mh||`<span style="color:var(--txm);">—</span>`}</td>
     <td style="padding:7px 8px;">${ch||`<span style="color:var(--txm);">—</span>`}</td>
     <td style="padding:7px 8px;">${planpill(b.plan||'อยู่ต่อ')}${planX}</td>
@@ -625,6 +638,7 @@ function openBed(d, id) {
   editDept = d; editId = id;
   const b = allBeds[editDept]?.[id] || emptyBed(id, editDept);
   editChecks=[...(b.checks||[])]; editConsults=[...(b.consult||[])]; editDx=[...(b.dx||[])];
+  editClass5Items = [...(b.class5Items||[])];
   const occ = b.dx?.length || b.plan === 'รอรับใหม่';
   document.getElementById('m-title').textContent = `เตียง ${id} — ${editDept}`;
   document.getElementById('m-tb').innerHTML = b.deptType ? tpill(b.deptType) : '';
@@ -645,12 +659,15 @@ function openBed(d, id) {
   renderConsTags();
   document.getElementById('m-rn').value = b.rn||'';
   buildClassBtns(b.class||'');
+  buildClass5Items(editClass5Items);
+  const c5o = document.getElementById('m-class5-other'); if(c5o) c5o.value = b.class5Other || '';
+  const c5box = document.getElementById('box-class5'); if(c5box) c5box.style.display = String(b.class) === '5' ? 'block' : 'none';
   buildPlanBtns(b.plan||'อยู่ต่อ');
   updatePlanExtra(b); buildChk(b.plan||'อยู่ต่อ');
   document.getElementById('bed-modal').classList.add('open');
 }
 function closeBed() { document.getElementById('bed-modal').classList.remove('open'); }
-function clearBedForm() { editChecks=[]; editConsults=[]; editDx=[]; openBed(editDept, editId); }
+function clearBedForm() { editChecks=[]; editConsults=[]; editDx=[]; editClass5Items=[]; openBed(editDept, editId); }
 function clearBedNow() {
   if(!confirm(`ล้างเตียง ${editId} เป็นเตียงว่าง?`)) return;
   const kt = allBeds[editDept]?.[editId]?.deptType || DEPTS[editDept].types[0];
@@ -694,6 +711,15 @@ const CLASS_COLORS = {
   '4':{bg:'#fce8d8',tx:'#6a3010',br:'#d08040',l:'4 — รุนแรง'},
   '5':{bg:'#fce8e8',tx:'#8a1a1a',br:'#d07070',l:'5 — วิกฤต'}
 };
+// Class 5 — critical care items (multi-select)
+const CLASS5_OPTIONS = [
+  {id:'vent',  l:'Ventilator',                icon:'🫁'},
+  {id:'ino',   l:'Inotrop',                   icon:'💉'},
+  {id:'resus', l:'Resuscitate',               icon:'⚡'},
+  {id:'cm',    l:'Close monitor (v/s<1hr)',   icon:'⏱'},
+  {id:'ap',    l:'Active problems',           icon:'❗'},
+  {id:'watch', l:'เฝ้าระวังเฉพาะโรค',         icon:'👁'}
+];
 function buildClassBtns(sel) {
   const el = document.getElementById('class-btns');
   if(!el) return;
@@ -706,6 +732,24 @@ function buildClassBtns(sel) {
 function selClass(n) {
   document.getElementById('m-class').value = n || '';
   buildClassBtns(n || '');
+  // Show/hide Class 5 critical items box
+  const c5box = document.getElementById('box-class5');
+  if(c5box) c5box.style.display = String(n) === '5' ? 'block' : 'none';
+}
+function buildClass5Items(items) {
+  const grid = document.getElementById('class5-grid');
+  if(!grid) return;
+  grid.innerHTML = CLASS5_OPTIONS.map(o => {
+    const on = items.includes(o.id);
+    return `<label class="cklbl ${on?'on':''}" id="c5-${o.id}" onclick="togClass5('${o.id}')" style="font-size:12px;">
+      <span class="ckbox">${on?'✓':''}</span><span style="margin-right:4px;">${o.icon}</span>${o.l}
+    </label>`;
+  }).join('');
+}
+function togClass5(id) {
+  if(editClass5Items.includes(id)) editClass5Items = editClass5Items.filter(x => x !== id);
+  else editClass5Items.push(id);
+  buildClass5Items(editClass5Items);
 }
 // Room type buttons (รวม / เดี่ยว / suite)
 const ROOM_TYPE_OPTS = [
@@ -803,6 +847,8 @@ function saveBed(){
     plan,
     checks:[...editChecks],
     class:document.getElementById('m-class')?.value || '',
+    class5Items: String(document.getElementById('m-class')?.value || '') === '5' ? [...editClass5Items] : [],
+    class5Other: String(document.getElementById('m-class')?.value || '') === '5' ? (document.getElementById('m-class5-other')?.value || '').trim() : '',
     transferRoomType:document.getElementById('m-rtype').value||'',
     transferMonitor:document.getElementById('m-mon')?.value||'',
     transferGenderPref:document.getElementById('m-tgen')?.value||'',
@@ -1055,6 +1101,7 @@ function renderTransferCard(b) {
         ${b.rn?`<span style="color:#0e8060;margin-left:6px;">RN: ${b.rn}</span>`:''}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;">${dxH}${moreDx}</div>
+      ${(String(b.class)==='5' && ((b.class5Items||[]).length || b.class5Other)) ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${(b.class5Items||[]).map(id=>{const opt=CLASS5_OPTIONS.find(o=>o.id===id);return opt?`<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#fce8e8;color:#8a1a1a;border:1px solid #d88080;">${opt.icon} ${opt.l}</span>`:'';}).join('')}${b.class5Other?`<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#fce8e8;color:#8a1a1a;border:1px solid #d88080;">+ ${b.class5Other}</span>`:''}</div>` : ''}
       ${b.master?`<div style="font-size:11px;color:var(--blue);margin-top:4px;">M: ${b.master}</div>`:''}
       ${detail}
     </div>`;
