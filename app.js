@@ -103,6 +103,7 @@ let rptHist = [], parsedBeds = [], selHistIdx = -1;
 let curSpec = 'All', curWt = 'all', curSD = 'CCU', curMode = 'offline';
 let ncuWorkbook = null, ncuFileName = '';
 let autoRefreshPaused = false;
+let transferDeptFilter = 'ALL';
 let currentUser = '';
 let currentUserMeta = {};
 
@@ -658,6 +659,11 @@ function openBed(d, id) {
   renderMasterTag(b.master||'');
   renderConsTags();
   document.getElementById('m-rn').value = b.rn||'';
+  // Populate RN/PN datalist for THIS bed's department (works in ALL view too)
+  const sc = stCfg[editDept] || {};
+  const allNurses = [...(sc.RN||[]), ...(sc.PN||[])];
+  const rnDl = document.getElementById('rn-dl');
+  if(rnDl) rnDl.innerHTML = allNurses.map(n => `<option value="${n}">`).join('');
   buildClassBtns(b.class||'');
   buildClass5Items(editClass5Items);
   const c5o = document.getElementById('m-class5-other'); if(c5o) c5o.value = b.class5Other || '';
@@ -1016,7 +1022,8 @@ function renderAdminStaffList(){const sc2=stCfg[curSD]||{RN:[],PN:[]};['RN','PN'
 // ════════════════════════════════════════
 function getAllTransferBeds() {
   const out = [];
-  ALL_DEPTS.forEach(d => {
+  const depts = transferDeptFilter === 'ALL' ? ALL_DEPTS : [transferDeptFilter];
+  depts.forEach(d => {
     Object.values(allBeds[d]||{}).forEach(b => {
       if(b.plan === 'ย้ายward รอห้อง' || b.plan === 'ย้าย ward ได้ห้องแล้ว') {
         out.push({...b, _dept:d});
@@ -1024,6 +1031,67 @@ function getAllTransferBeds() {
     });
   });
   return out;
+}
+function setTransferDeptFilter(d) {
+  transferDeptFilter = d;
+  document.querySelectorAll('.tr-dept-btn').forEach(btn => {
+    btn.classList.toggle('on', btn.dataset.dept === d);
+  });
+  renderTransferDashboard();
+}
+// Sub-summary inside "รอห้อง" column — counts by room type, monitor, gender
+function renderWaitingSubSummary(waiting) {
+  if(!waiting.length) return '';
+  const rt = {'รวม':0,'เดี่ยว':0,'suite':0,'(ไม่ระบุ)':0};
+  const mon = {'ต้องการ':0,'ไม่ต้องการ':0,'(ไม่ระบุ)':0};
+  const gen = {'ชาย':0,'หญิง':0,'(ไม่ระบุ)':0};
+  waiting.forEach(b => {
+    const r = b.transferRoomType || '(ไม่ระบุ)';
+    rt[r] = (rt[r]||0) + 1;
+    const m = b.transferMonitor || '(ไม่ระบุ)';
+    mon[m] = (mon[m]||0) + 1;
+    const g = b.transferGenderPref || b.gender || '(ไม่ระบุ)';
+    gen[g] = (gen[g]||0) + 1;
+  });
+  return `
+    <div class="tr-subsum">
+      <div class="tr-subsum-row">
+        <span class="tr-subsum-lbl">🏠 ประเภท:</span>
+        <span class="tr-subsum-pill" style="background:var(--ambd);color:var(--ambl);border-color:#e0a020;">รวม <b>${rt['รวม']||0}</b></span>
+        <span class="tr-subsum-pill" style="background:var(--ambd);color:var(--ambl);border-color:#e0a020;">เดี่ยว <b>${rt['เดี่ยว']||0}</b></span>
+        <span class="tr-subsum-pill" style="background:var(--ambd);color:var(--ambl);border-color:#e0a020;">Suite <b>${rt['suite']||0}</b></span>
+        ${rt['(ไม่ระบุ)']?`<span class="tr-subsum-pill" style="background:var(--surf2);color:var(--txm);border-color:var(--bdr);">ไม่ระบุ <b>${rt['(ไม่ระบุ)']}</b></span>`:''}
+      </div>
+      <div class="tr-subsum-row">
+        <span class="tr-subsum-lbl">📺 Monitor:</span>
+        <span class="tr-subsum-pill" style="background:var(--blued);color:var(--blue);border-color:var(--blue);">ต้องการ <b>${mon['ต้องการ']||0}</b></span>
+        <span class="tr-subsum-pill" style="background:var(--surf2);color:var(--txd);border-color:var(--bdr);">ไม่ต้องการ <b>${mon['ไม่ต้องการ']||0}</b></span>
+        ${mon['(ไม่ระบุ)']?`<span class="tr-subsum-pill" style="background:var(--surf2);color:var(--txm);border-color:var(--bdr);">ไม่ระบุ <b>${mon['(ไม่ระบุ)']}</b></span>`:''}
+      </div>
+      <div class="tr-subsum-row">
+        <span class="tr-subsum-lbl">👤 เพศ:</span>
+        <span class="tr-subsum-pill" style="background:#d0e8f8;color:#1a3a6a;border-color:#7ab0d8;">ชาย <b>${gen['ชาย']||0}</b></span>
+        <span class="tr-subsum-pill" style="background:#f8d8e8;color:#6a1a3a;border-color:#d87aaa;">หญิง <b>${gen['หญิง']||0}</b></span>
+        ${gen['(ไม่ระบุ)']?`<span class="tr-subsum-pill" style="background:var(--surf2);color:var(--txm);border-color:var(--bdr);">ไม่ระบุ <b>${gen['(ไม่ระบุ)']}</b></span>`:''}
+      </div>
+    </div>`;
+}
+// Sub-summary inside "ได้ห้องแล้ว" column — counts of each checklist item
+function renderGotSubSummary(got) {
+  if(!got.length) return '';
+  const items = CL['ย้าย ward ได้ห้องแล้ว'] || [];
+  const counts = {};
+  items.forEach(it => counts[it.id] = 0);
+  got.forEach(b => (b.checks||[]).forEach(cid => { if(counts.hasOwnProperty(cid)) counts[cid]++; }));
+  const active = items.filter(it => counts[it.id] > 0).sort((a,b) => counts[b.id] - counts[a.id]);
+  if(!active.length) return `<div class="tr-subsum"><span style="font-size:11px;color:var(--txm);">ยังไม่มีการ check รายการ checklist</span></div>`;
+  return `
+    <div class="tr-subsum">
+      <div class="tr-subsum-row">
+        <span class="tr-subsum-lbl">⏳ รอ:</span>
+        ${active.map(it => `<span class="tr-subsum-pill" style="background:var(--blued);color:var(--blue);border-color:var(--blue);">${it.l} <b>${counts[it.id]}</b></span>`).join('')}
+      </div>
+    </div>`;
 }
 function timeAgo(iso) {
   if(!iso) return '—';
@@ -1037,13 +1105,15 @@ function timeAgo(iso) {
   } catch { return '—'; }
 }
 function renderTransferDashboard() {
-  const waiting = getAllTransferBeds().filter(b => b.plan === 'ย้ายward รอห้อง');
-  const got = getAllTransferBeds().filter(b => b.plan === 'ย้าย ward ได้ห้องแล้ว');
-  // Summary counts
+  const all = getAllTransferBeds();
+  const waiting = all.filter(b => b.plan === 'ย้ายward รอห้อง');
+  const got = all.filter(b => b.plan === 'ย้าย ward ได้ห้องแล้ว');
+  const filterLbl = transferDeptFilter === 'ALL' ? 'ทุกแผนก' : transferDeptFilter;
+  // Top summary cards
   const sum = document.getElementById('tr-summary');
   if(sum) {
-    const byDeptWait = ALL_DEPTS.map(d=>{const n=waiting.filter(b=>b._dept===d).length;return `${deptPill(d)} ${n}`;}).join(' ');
-    const byDeptGot  = ALL_DEPTS.map(d=>{const n=got.filter(b=>b._dept===d).length;return `${deptPill(d)} ${n}`;}).join(' ');
+    const byDeptWait = (transferDeptFilter === 'ALL' ? ALL_DEPTS : [transferDeptFilter]).map(d=>{const n=waiting.filter(b=>b._dept===d).length;return `${deptPill(d)} ${n}`;}).join(' ');
+    const byDeptGot  = (transferDeptFilter === 'ALL' ? ALL_DEPTS : [transferDeptFilter]).map(d=>{const n=got.filter(b=>b._dept===d).length;return `${deptPill(d)} ${n}`;}).join(' ');
     sum.innerHTML = `
       <div class="tr-sum-card" style="border-color:var(--ambl);">
         <div class="tr-sum-lbl" style="color:var(--ambl);">🟡 รอห้อง</div>
@@ -1056,11 +1126,18 @@ function renderTransferDashboard() {
         <div class="tr-sum-brk">${byDeptGot}</div>
       </div>
       <div class="tr-sum-card" style="border-color:var(--teal);">
-        <div class="tr-sum-lbl" style="color:var(--teal);">📊 รวม</div>
+        <div class="tr-sum-lbl" style="color:var(--teal);">📊 รวม (${filterLbl})</div>
         <div class="tr-sum-val">${waiting.length + got.length}</div>
         <div class="tr-sum-brk">ผู้ป่วยที่กำลังย้ายวอร์ด</div>
       </div>`;
   }
+  // Column header counts
+  const wc = document.getElementById('tr-wait-cnt'); if(wc) wc.textContent = `(${waiting.length})`;
+  const gc = document.getElementById('tr-got-cnt'); if(gc) gc.textContent = `(${got.length})`;
+  // Sub-summaries
+  const wsEl = document.getElementById('tr-wait-summary'); if(wsEl) wsEl.innerHTML = renderWaitingSubSummary(waiting);
+  const gsEl = document.getElementById('tr-got-summary'); if(gsEl) gsEl.innerHTML = renderGotSubSummary(got);
+  // Card lists
   document.getElementById('tr-waiting').innerHTML = waiting.length
     ? waiting.map(renderTransferCard).join('')
     : '<div class="tr-empty">ไม่มีผู้ป่วยที่รอห้อง</div>';
@@ -1085,6 +1162,15 @@ function renderTransferCard(b) {
     const dest = (b.transferWard || b.transferRoom) ? `<div style="margin-top:6px;background:var(--blued);border:1px solid var(--blue);border-radius:var(--r);padding:6px 10px;font-size:12px;color:var(--blue);font-weight:600;">📍 Ward ${b.transferWard||'—'} · ห้อง ${b.transferRoom||'—'}${b.transferBed?' · เตียง '+b.transferBed:''}</div>` : '';
     detail = dest;
   }
+  // Checked items (สถานะ checklist) — แสดงรายการที่เลือกไว้
+  const cl = CL[b.plan] || [];
+  const checked = cl.filter(i => (b.checks||[]).includes(i.id));
+  const checkRow = checked.length
+    ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:3px;">${checked.map(i => {
+        const color = b.plan==='ย้ายward รอห้อง' ? {bg:'#d0eedc',tx:'#0a5030',br:'#6ec8a0'} : {bg:'#d8eaf8',tx:'#1a3a6a',br:'#7ab0d8'};
+        return `<span style="display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;background:${color.bg};color:${color.tx};border:1px solid ${color.br};">✓ ${i.l}</span>`;
+      }).join('')}</div>`
+    : '';
   return `
     <div class="tr-card" onclick="openBed('${d}','${b.id}')">
       <div class="tr-card-head">
@@ -1104,6 +1190,7 @@ function renderTransferCard(b) {
       ${(String(b.class)==='5' && ((b.class5Items||[]).length || b.class5Other)) ? `<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;">${(b.class5Items||[]).map(id=>{const opt=CLASS5_OPTIONS.find(o=>o.id===id);return opt?`<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#fce8e8;color:#8a1a1a;border:1px solid #d88080;">${opt.icon} ${opt.l}</span>`:'';}).join('')}${b.class5Other?`<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:600;background:#fce8e8;color:#8a1a1a;border:1px solid #d88080;">+ ${b.class5Other}</span>`:''}</div>` : ''}
       ${b.master?`<div style="font-size:11px;color:var(--blue);margin-top:4px;">M: ${b.master}</div>`:''}
       ${detail}
+      ${checkRow}
     </div>`;
 }
 
