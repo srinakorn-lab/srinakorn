@@ -46,6 +46,7 @@
   <div id="user-pill-wrap" class="user-pill" style="display:none;"></div>
   <div class="top-btns">
     <button class="tbtn-mode active" id="mode-dash" onclick="switchMode('dashboard')">📋 Dashboard</button>
+    <button class="tbtn-mode" id="mode-transfer" onclick="switchMode('transfer')">🚚 ย้ายวอร์ด</button>
     <button class="tbtn-mode" id="mode-admin" onclick="switchMode('admin')">⚙️ Admin</button>
     <button class="logout-btn" onclick="doLogout()">🚪 ออกจากระบบ</button>
   </div>
@@ -154,6 +155,13 @@
         <select class="ipt" id="m-plan-dc" style="display:none;"><option value="">— ไม่มี —</option></select>
       </div>
     </div>
+    <!-- Class (ความรุนแรง) -->
+    <div>
+      <div class="stitle">⚡ ความรุนแรง (Class)</div>
+      <div id="class-btns" style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;"></div>
+      <input type="hidden" id="m-class">
+      <div style="font-size:10px;color:var(--txm);margin-top:4px;">1 = น้อย &nbsp;→&nbsp; 5 = วิกฤต</div>
+    </div>
     <!-- Dx -->
     <div>
       <div class="stitle">🩺 การวินิจฉัย (Dx)</div>
@@ -211,9 +219,28 @@
       <input type="hidden" id="m-plan" value="อยู่ต่อ">
     </div>
     <!-- ย้าย ward รอห้อง -->
-    <div id="box-rt" style="display:none;background:var(--ambd);border:1px solid #e0a020;border-radius:var(--r);padding:10px;">
+    <div id="box-rt" style="display:none;background:var(--ambd);border:1px solid #e0a020;border-radius:var(--r);padding:12px;">
       <label class="flbl">ประเภทห้องที่ต้องการ</label>
-      <select class="ipt" id="m-rtype"><option value="">— ไม่ระบุ —</option><option>ห้องพิเศษ</option><option>ห้องรวม</option><option>ICU</option><option>CCU</option><option>NCU</option><option>AIIR</option></select>
+      <div id="rt-btns" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
+      <input type="hidden" id="m-rtype">
+      <div class="g2">
+        <div>
+          <label class="flbl">📺 Monitor</label>
+          <select class="ipt" id="m-mon">
+            <option value="">— ไม่ระบุ —</option>
+            <option value="ต้องการ">ต้องการ</option>
+            <option value="ไม่ต้องการ">ไม่ต้องการ</option>
+          </select>
+        </div>
+        <div>
+          <label class="flbl">👤 เพศ (สำหรับจัดห้อง)</label>
+          <select class="ipt" id="m-tgen">
+            <option value="">— ไม่ระบุ —</option>
+            <option value="ชาย">ชาย</option>
+            <option value="หญิง">หญิง</option>
+          </select>
+        </div>
+      </div>
     </div>
     <!-- ย้าย ward ได้ห้องแล้ว -->
     <div id="box-dest" style="display:none;background:var(--blued);border:1px solid var(--blue);border-radius:var(--r);padding:10px;">
@@ -307,6 +334,28 @@
 </div>
 
 </div><!-- end dash-mode -->
+
+<!-- ═══════════════════ TRANSFER MODE ═══════════════════ -->
+<div id="transfer-mode" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+  <div id="tr-header">
+    <div>
+      <div class="hdr-title"><span class="ldot"></span> สรุปการย้ายวอร์ด</div>
+      <div class="hdr-sub">ภาพรวมผู้ป่วยที่กำลังย้ายไปวอร์ดอื่น — ทุกแผนก · กดที่การ์ดเพื่อแก้ไข</div>
+    </div>
+    <button class="bsm" onclick="renderTransferDashboard()" style="white-space:nowrap;">🔄 รีเฟรช</button>
+  </div>
+  <div id="tr-summary"></div>
+  <div id="tr-body">
+    <div class="tr-col">
+      <div class="tr-col-title" style="color:var(--ambl);"><span style="font-size:18px;">🟡</span> รอห้อง</div>
+      <div id="tr-waiting"></div>
+    </div>
+    <div class="tr-col">
+      <div class="tr-col-title" style="color:var(--blue);"><span style="font-size:18px;">🔵</span> ได้ห้องแล้ว</div>
+      <div id="tr-got"></div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════ ADMIN MODE ═══════════════════ -->
 <div id="admin-mode" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
