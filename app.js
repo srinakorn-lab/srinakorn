@@ -163,8 +163,7 @@ async function load() {
   const sb = await getSupabase();
   if(sb) {
     try {
-      const userDept = currentUserMeta.dept || (isAdminUser() ? null : dept);
-      const depts = isAdminUser() ? ALL_DEPTS : [userDept].filter(Boolean);
+      const depts = ALL_DEPTS;
       for(const d of depts) {
         const {data, error} = await sb.from('ccu_state').select('beds,wards,st_cfg,doctors,report_history').eq('id', d).single();
         if(!error && data) {
@@ -333,15 +332,10 @@ function afterLogin(deptHint, role) {
     document.getElementById('mode-admin').style.display = 'none';
   }
   const deptSel = document.getElementById('dept-sel');
-  if(deptHint && ALL_DEPTS.includes(deptHint)) {
-    deptSel.value = deptHint;
-    dept = deptHint;
-  } else {
-    deptSel.value = 'ALL';
-    dept = 'ALL';
-  }
+  deptSel.value = 'ALL';
+  dept = 'ALL';
   const note = document.getElementById('access-note');
-  if(note) note.textContent = role === 'admin' ? '' : (deptHint ? `🔒 บัญชีนี้เข้าถึง ${deptHint} เท่านั้น` : '');
+  if(note) note.textContent = role === 'admin' ? '' : 'ดูได้ทุกแผนก · นำเข้ารายงานได้';
   initApp();
 }
 async function doLogout() {
@@ -376,14 +370,20 @@ async function setupRealtime() {
 // MODE SWITCH
 // ════════════════════════════════════════
 function switchMode(m) {
+  const adminLike = (m === 'admin' || m === 'import');
   document.getElementById('dash-mode').style.display = m === 'dashboard' ? 'flex' : 'none';
-  document.getElementById('admin-mode').style.display = m === 'admin' ? 'flex' : 'none';
+  document.getElementById('admin-mode').style.display = adminLike ? 'flex' : 'none';
   const tm = document.getElementById('transfer-mode'); if(tm) tm.style.display = m === 'transfer' ? 'flex' : 'none';
   document.getElementById('mode-dash').classList.toggle('active', m === 'dashboard');
   document.getElementById('mode-admin').classList.toggle('active', m === 'admin');
+  const miBtn = document.getElementById('mode-import'); if(miBtn) miBtn.classList.toggle('active', m === 'import');
   const mtBtn = document.getElementById('mode-transfer'); if(mtBtn) mtBtn.classList.toggle('active', m === 'transfer');
+  // Show admin-only nav tabs only for admins; staff in import mode see import tab only
+  const adminOnlyTabs = ['nav-doctors','nav-staff','nav-users'];
+  adminOnlyTabs.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = isAdminUser() ? '' : 'none'; });
   if(m === 'dashboard') { renderTable(); renderStaff(); }
-  if(m === 'admin') { loadAll().then(() => { renderHist(); renderSpecTabs(); renderDrList(); renderAdminStaffList(); }); }
+  if(m === 'admin') { loadAll().then(() => { renderHist(); renderSpecTabs(); renderDrList(); renderAdminStaffList(); gotoPage('import', document.getElementById('nav-import')); }); }
+  if(m === 'import') { loadAll().then(() => { renderHist(); gotoPage('import', document.getElementById('nav-import')); }); }
   if(m === 'transfer') { load().then(() => renderTransferDashboard()); }
 }
 
@@ -929,6 +929,35 @@ async function filePdfOff(file){showProgress(true,'กำลังโหลด P
 async function filePdfAI(file){showProgress(true,'กำลังโหลด PDF.js สำหรับ AI...');if(!window.pdfjsLib){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';}showProgress(true,'กำลังอ่าน PDF...');const ab=await file.arrayBuffer();const pdf=await pdfjsLib.getDocument({data:ab}).promise;let full='';for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p);const tc=await page.getTextContent();full+=tc.items.map(i=>i.str).join(' ')+'\n';}setRaw(full);showProgress(true,'ส่งข้อความให้ Claude AI...');const beds=await aiParseText(full);finishParse(beds,file.name,full);}
 async function aiParseText(text){const prompt=`parse รายงาน Case CCU ต่อไปนี้ ตอบเฉพาะ JSON array เท่านั้น ไม่ต้องมีข้อความอื่น:\n[{"bed":1,"empty":false,"room_type":"IMCCU","gender":"ชาย","age":"77","admit_date":"9/4/69","los":"10","code":"G","dx":["STEMI"],"master":["พ.แพทย์"],"consult":[],"orNote":"","ccNote":"","presentNote":"","rn":"","plan":"อยู่ต่อ"}]\nrule: empty=true ถ้าเตียงว่าง; ห้ามใส่ชื่อผู้ป่วย HN AN; room_type: CCU/IMCCU/NCU/IMNCU/ICU/IMCU/ฝากนอน; plan: อยู่ต่อ/D/C/refer/plan D/C/ย้ายward รอห้อง/ย้าย ward ได้ห้องแล้ว; los=วันนอน\n\nข้อมูล:\n${text.substring(0,6000)}`;return await callAnthropic([{type:'text',text:prompt}]);}
 async function callAnthropic(content){
+  // วิธีปลอดภัย (แนะนำ): เรียกผ่าน Edge Function 'ai-parse' — key อยู่ฝั่งเซิร์ฟเวอร์
+  // ถ้ายังไม่ได้ deploy ฟังก์ชัน จะ fallback ไปเรียกตรงด้วย key ใน config (เหมือนเดิม)
+  const sb = await getSupabase();
+  if(sb && window.CFG?.supabaseUrl){
+    try{
+      const { data:{ session } } = await sb.auth.getSession();
+      const resp = await fetch(`${window.CFG.supabaseUrl}/functions/v1/ai-parse`,{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization':`Bearer ${session?.access_token||''}`,
+          'apikey': window.CFG.supabaseKey
+        },
+        body: JSON.stringify({ content })
+      });
+      if(resp.status!==404){
+        const data = await resp.json();
+        if(!resp.ok) throw new Error(data.error||('HTTP '+resp.status));
+        const text=(data.content||[]).map(c=>c.text||'').join('');
+        if(!text) throw new Error('ไม่ได้รับข้อมูลจาก AI');
+        return JSON.parse(text.replace(/```json|```/g,'').trim());
+      }
+      // 404 = ยังไม่ได้ deploy ฟังก์ชัน → ใช้วิธีเดิมด้านล่าง
+    }catch(e){
+      // ถ้าเรียก Edge Function ล้มเหลวด้วยเหตุอื่น ให้ลองวิธีเดิมต่อ
+      console.warn('ai-parse function unavailable, falling back to direct call:', e);
+    }
+  }
+  // วิธีเดิม: เรียก Anthropic ตรงจากเบราว์เซอร์ด้วย key ใน config
   const key = window.CFG?.anthropicKey || '';
   const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,messages:[{role:'user',content}]})});
   const data=await resp.json();const text=(data.content||[]).map(c=>c.text||'').join('');
