@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>critical PTS System</title>
+<title>CCU System</title>
 <!-- config.js ต้องสร้างจาก config.example.js ก่อน -->
 <script src="config.js"></script>
 <!-- Supabase JS SDK -->
@@ -48,6 +48,7 @@
     <button class="tbtn-mode active" id="mode-dash" onclick="switchMode('dashboard')">📋 Dashboard</button>
     <button class="tbtn-mode" id="mode-transfer" onclick="switchMode('transfer')">🚚 ย้ายวอร์ด</button>
     <button class="tbtn-mode" id="mode-admin" onclick="switchMode('admin')">⚙️ Admin</button>
+    <button class="tbtn-mode" onclick="openMyPassword()" title="เปลี่ยนรหัสผ่านของฉัน">🔑 รหัสผ่าน</button>
     <button class="logout-btn" onclick="doLogout()">🚪 ออกจากระบบ</button>
   </div>
 </div>
@@ -340,6 +341,41 @@
   </div>
 </div>
 
+<!-- MY PASSWORD MODAL -->
+<div class="ov" id="mypw-modal">
+  <div class="modal" style="max-width:380px;">
+    <div class="mhdr"><span style="font-weight:700;font-size:14px;color:var(--blue);">🔑 เปลี่ยนรหัสผ่านของฉัน</span><button onclick="closeMyPassword()" style="background:none;border:none;color:var(--txd);cursor:pointer;font-size:17px;">✕</button></div>
+    <div class="mbody" style="gap:9px;">
+      <div style="font-size:12px;color:var(--txd);">บัญชี: <b id="mypw-who" style="color:var(--tx);"></b></div>
+      <div id="mypw-warn" style="display:none;font-size:11px;color:#7a5200;background:#fff3d0;border:1px solid #e0a020;border-radius:var(--r);padding:8px 10px;">⚠ ต้องเชื่อม Supabase ก่อนจึงจะเปลี่ยนรหัสผ่านได้</div>
+      <div><label class="flbl">รหัสผ่านใหม่</label><input class="ipt" id="myp-1" type="password" placeholder="อย่างน้อย 6 ตัว" autocomplete="new-password"></div>
+      <div><label class="flbl">ยืนยันรหัสผ่านใหม่</label><input class="ipt" id="myp-2" type="password" autocomplete="new-password" onkeydown="if(event.key==='Enter')saveMyPassword()"></div>
+    </div>
+    <div class="mftr" style="justify-content:flex-end;">
+      <button onclick="closeMyPassword()" style="padding:6px 13px;background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);cursor:pointer;font-family:inherit;">ยกเลิก</button>
+      <button onclick="saveMyPassword()" style="padding:6px 18px;background:var(--blue);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-weight:600;font-family:inherit;margin-left:7px;">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT USER META MODAL -->
+<div class="ov" id="editmeta-modal">
+  <div class="modal" style="max-width:380px;">
+    <div class="mhdr"><span style="font-weight:700;font-size:14px;color:var(--blue);">⚙️ สิทธิ์ผู้ใช้</span><button onclick="closeEditMeta()" style="background:none;border:none;color:var(--txd);cursor:pointer;font-size:17px;">✕</button></div>
+    <div class="mbody" style="gap:9px;">
+      <input type="hidden" id="em-id">
+      <div style="font-size:12px;color:var(--txd);">บัญชี: <b id="em-who" style="color:var(--tx);word-break:break-all;"></b></div>
+      <div><label class="flbl">สิทธิ์ (role)</label><select class="ipt" id="em-role"><option value="staff">staff</option><option value="admin">admin</option></select></div>
+      <div><label class="flbl">แผนกที่เข้าถึง</label><select class="ipt" id="em-dept"><option value="ALL">ทุกแผนก</option><option>CCU</option><option>NCU</option><option>ICU</option></select></div>
+      <div style="font-size:10px;color:var(--txm);">การเปลี่ยนสิทธิ์จะมีผลเต็มที่เมื่อผู้ใช้ออกแล้วเข้าระบบใหม่</div>
+    </div>
+    <div class="mftr" style="justify-content:flex-end;">
+      <button onclick="closeEditMeta()" style="padding:6px 13px;background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);cursor:pointer;font-family:inherit;">ยกเลิก</button>
+      <button onclick="saveEditMeta()" style="padding:6px 18px;background:var(--blue);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-weight:600;font-family:inherit;margin-left:7px;">บันทึก</button>
+    </div>
+  </div>
+</div>
+
 </div><!-- end dash-mode -->
 
 <!-- ═══════════════════ TRANSFER MODE ═══════════════════ -->
@@ -379,6 +415,7 @@
   <button class="ntab active" onclick="gotoPage('import',this)">📤 นำเข้ารายงาน</button>
   <button class="ntab" onclick="gotoPage('doctors',this)">🩺 แพทย์</button>
   <button class="ntab" onclick="gotoPage('staff',this)">👩‍⚕️ RN/PN</button>
+  <button class="ntab" onclick="gotoPage('users',this)">👤 ผู้ใช้</button>
 </div>
 
 <!-- IMPORT PAGE -->
@@ -517,6 +554,31 @@
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- USERS PAGE -->
+<div class="page" id="page-users">
+  <div class="card">
+    <div class="ctitle">➕ เพิ่มผู้ใช้ใหม่</div>
+    <div class="g2" style="margin-bottom:7px;">
+      <div><label class="flbl">อีเมล</label><input class="ipt" id="nu-email" type="email" placeholder="ccu-nurse@example.com" autocapitalize="off" spellcheck="false"></div>
+      <div><label class="flbl">รหัสผ่านชั่วคราว</label><input class="ipt" id="nu-pass" type="text" placeholder="อย่างน้อย 6 ตัว"></div>
+    </div>
+    <div class="g2" style="margin-bottom:9px;">
+      <div><label class="flbl">สิทธิ์ (role)</label><select class="ipt" id="nu-role"><option value="staff">staff (ใช้งานทั่วไป)</option><option value="admin">admin (ผู้ดูแล)</option></select></div>
+      <div><label class="flbl">แผนกที่เข้าถึง</label><select class="ipt" id="nu-dept"><option value="ALL">ทุกแผนก</option><option>CCU</option><option>NCU</option><option>ICU</option></select></div>
+    </div>
+    <button onclick="adminCreateUser()" style="width:100%;padding:8px;background:var(--blue);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-size:13px;font-family:inherit;font-weight:600;">+ สร้างบัญชีผู้ใช้</button>
+    <div style="font-size:10px;color:var(--txm);margin-top:6px;">แนะนำให้ผู้ใช้เปลี่ยนรหัสผ่านเองหลังเข้าระบบครั้งแรก (ปุ่ม 🔑 รหัสผ่าน มุมขวาบน)</div>
+  </div>
+  <div class="card">
+    <div class="ctitle">
+      <span>👥 รายชื่อผู้ใช้</span>
+      <button onclick="renderUsersPage()" style="background:none;border:1px solid var(--bdr);border-radius:var(--r);color:var(--txd);padding:4px 9px;cursor:pointer;font-size:11px;font-family:inherit;">🔄 รีเฟรช</button>
+    </div>
+    <div id="users-note" style="display:none;font-size:12px;color:#7a5200;background:#fff3d0;border:1px solid #e0a020;border-radius:var(--r);padding:9px 11px;line-height:1.55;margin-bottom:9px;"></div>
+    <div id="users-list"></div>
   </div>
 </div>
 
