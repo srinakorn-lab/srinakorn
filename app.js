@@ -906,7 +906,7 @@ function toast(msg,bg){const n=document.createElement('div');n.textContent=msg;n
 // ════════════════════════════════════════
 // ADMIN NAVIGATION
 // ════════════════════════════════════════
-function gotoPage(p,el){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.ntab').forEach(x=>x.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');if(el)el.classList.add('active');if(p==='doctors'){renderSpecTabs();renderDrList();}if(p==='staff'){renderAdminStaffList();}}
+function gotoPage(p,el){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.ntab').forEach(x=>x.classList.remove('active'));document.getElementById('page-'+p).classList.add('active');if(el)el.classList.add('active');if(p==='doctors'){renderSpecTabs();renderDrList();}if(p==='staff'){renderAdminStaffList();}if(p==='users'){renderUsersPage();}}
 
 // ════════════════════════════════════════
 // PARSE MODE
@@ -1014,6 +1014,155 @@ function swSD(d,el){curSD=d;document.querySelectorAll('#sdt .stab').forEach(t=>t
 function addSt(role){const inp=document.getElementById(role.toLowerCase()+'-inp');const name=inp.value.trim();if(!name)return;if(!stCfg[curSD])stCfg[curSD]={RN:[],PN:[]};if(!stCfg[curSD][role])stCfg[curSD][role]=[];if(!stCfg[curSD][role].includes(name))stCfg[curSD][role].push(name);inp.value='';saveAll();renderAdminStaffList();}
 function delSt(role,name){if(!stCfg[curSD])return;if(!stCfg[curSD][role])return;stCfg[curSD][role]=stCfg[curSD][role].filter(n=>n!==name);saveAll();renderAdminStaffList();}
 function renderAdminStaffList(){const sc2=stCfg[curSD]||{RN:[],PN:[]};['RN','PN'].forEach(role=>{const el=document.getElementById(role.toLowerCase()+'-list');if(!el)return;const list=sc2[role]||[];el.innerHTML=list.length?list.map(n=>`<div class="li"><span class="nm">${n}</span><button class="del" data-role="${role}" data-name="${n.replace(/"/g,'&quot;')}">✕</button></div>`).join(''):`<div style="padding:12px;text-align:center;color:var(--txm);font-size:12px;">ยังไม่มีรายชื่อ</div>`;el.querySelectorAll('.del').forEach(btn=>{btn.onclick=function(){delSt(this.dataset.role,this.dataset.name);};});});}
+
+// ════════════════════════════════════════
+// USER MANAGEMENT (Admin) + เปลี่ยนรหัสผ่านตัวเอง
+// - เปลี่ยนรหัสตัวเอง: ทำใน browser ได้ (auth.updateUser)
+// - เพิ่ม/รีเซ็ต/ลบ ผู้ใช้: เรียก Edge Function 'admin-users'
+//   (service_role อยู่ฝั่ง server เท่านั้น — ไม่ฝังในหน้าเว็บ)
+// ════════════════════════════════════════
+
+// ---- เปลี่ยนรหัสผ่านของฉัน (ทุก user) ----
+function openMyPassword(){
+  const sb0 = window.CFG?.supabaseUrl && window.CFG?.supabaseKey;
+  document.getElementById('mypw-who').textContent = currentUser || '';
+  document.getElementById('myp-1').value = '';
+  document.getElementById('myp-2').value = '';
+  document.getElementById('mypw-warn').style.display = sb0 ? 'none' : 'block';
+  document.getElementById('mypw-modal').classList.add('open');
+}
+function closeMyPassword(){ document.getElementById('mypw-modal').classList.remove('open'); }
+async function saveMyPassword(){
+  const p1 = document.getElementById('myp-1').value;
+  const p2 = document.getElementById('myp-2').value;
+  if(p1.length < 6){ toast('รหัสผ่านอย่างน้อย 6 ตัวอักษร','#c0392b'); return; }
+  if(p1 !== p2){ toast('รหัสผ่านยืนยันไม่ตรงกัน','#c0392b'); return; }
+  const sb = await getSupabase();
+  if(!sb){ toast('ต้องเชื่อม Supabase ก่อนจึงจะเปลี่ยนรหัสได้','#c0392b'); return; }
+  try{
+    const { error } = await sb.auth.updateUser({ password: p1 });
+    if(error) throw error;
+    toast('✅ เปลี่ยนรหัสผ่านเรียบร้อย','#0e8060');
+    closeMyPassword();
+  }catch(e){ toast('❌ '+(e.message||e),'#c0392b'); }
+}
+
+// ---- เรียก Edge Function สำหรับงาน admin ----
+async function callAdminFn(action, payload={}){
+  const sb = await getSupabase();
+  if(!sb) throw new Error('ระบบยังไม่ได้เชื่อม Supabase');
+  const { data:{ session } } = await sb.auth.getSession();
+  if(!session) throw new Error('ยังไม่ได้เข้าสู่ระบบ (ไม่มี session)');
+  const res = await fetch(`${window.CFG.supabaseUrl}/functions/v1/admin-users`, {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'Authorization':`Bearer ${session.access_token}`,
+      'apikey': window.CFG.supabaseKey
+    },
+    body: JSON.stringify({ action, ...payload })
+  });
+  let j; try{ j = await res.json(); }catch{ j = { error:'อ่านผลลัพธ์จากเซิร์ฟเวอร์ไม่ได้' }; }
+  if(!res.ok) throw new Error(j.error || ('HTTP '+res.status));
+  return j;
+}
+
+// ---- หน้า "ผู้ใช้" ----
+let _usersCache = [];
+async function renderUsersPage(){
+  const box = document.getElementById('users-list');
+  const note = document.getElementById('users-note');
+  if(!isAdminUser()){ box.innerHTML = '<div style="padding:14px;color:var(--txm);">เฉพาะผู้ดูแลระบบ (admin)</div>'; return; }
+  if(!(window.CFG?.supabaseUrl && window.CFG?.supabaseKey)){
+    box.innerHTML = '';
+    note.style.display = 'block';
+    note.innerHTML = '⚠ ยังไม่ได้เชื่อม Supabase — การจัดการผู้ใช้ใช้ได้เฉพาะเมื่อเชื่อม Supabase แล้ว (โหมด login สำรองในเครื่องไม่รองรับ)';
+    return;
+  }
+  note.style.display = 'none';
+  box.innerHTML = '<div style="padding:14px;color:var(--txd);font-size:12px;">⏳ กำลังโหลดรายชื่อผู้ใช้...</div>';
+  try{
+    const { users } = await callAdminFn('list');
+    _usersCache = users || [];
+    if(!_usersCache.length){ box.innerHTML = '<div style="padding:14px;color:var(--txm);">ยังไม่มีผู้ใช้</div>'; return; }
+    box.innerHTML = _usersCache.map(u=>{
+      const isAdmin = u.role==='admin';
+      const dept = u.dept || '—';
+      const last = u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString('th-TH') : 'ยังไม่เคยเข้า';
+      return `<div class="uli">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;color:var(--tx);font-size:13px;word-break:break-all;">${u.email||'(ไม่มีอีเมล)'}</div>
+          <div style="font-size:11px;color:var(--txd);margin-top:2px;">
+            <span class="ubadge ${isAdmin?'uadm':'usta'}">${isAdmin?'admin':'staff'}</span>
+            <span class="ubadge udept">${dept}</span>
+            <span style="margin-left:6px;color:var(--txm);">เข้าล่าสุด: ${last}</span>
+          </div>
+        </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+          <button class="ubtn" onclick="adminResetPw('${u.id}','${(u.email||'').replace(/'/g,'')}')">🔑 รีเซ็ตรหัส</button>
+          <button class="ubtn" onclick="adminEditMeta('${u.id}')">⚙️ สิทธิ์</button>
+          <button class="ubtn udel" onclick="adminDeleteUser('${u.id}','${(u.email||'').replace(/'/g,'')}')">🗑</button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    box.innerHTML = '';
+    note.style.display = 'block';
+    note.innerHTML = '⚠ เรียกระบบจัดการผู้ใช้ไม่สำเร็จ: '+(e.message||e)+
+      '<br><span style="color:var(--txm);">ตรวจสอบว่าได้ deploy Edge Function ชื่อ <b>admin-users</b> แล้ว (ดูวิธีในไฟล์ SETUP_USER_MANAGEMENT.md)</span>';
+  }
+}
+
+async function adminCreateUser(){
+  const email = document.getElementById('nu-email').value.trim();
+  const pass  = document.getElementById('nu-pass').value;
+  const role  = document.getElementById('nu-role').value;
+  const dept  = document.getElementById('nu-dept').value;
+  if(!email || !/.+@.+\..+/.test(email)){ toast('กรอกอีเมลให้ถูกต้อง','#c0392b'); return; }
+  if(pass.length < 6){ toast('รหัสผ่านอย่างน้อย 6 ตัวอักษร','#c0392b'); return; }
+  try{
+    await callAdminFn('create', { email, password: pass, role, dept: dept==='ALL'?null:dept });
+    toast('✅ เพิ่มผู้ใช้: '+email,'#0e8060');
+    document.getElementById('nu-email').value='';
+    document.getElementById('nu-pass').value='';
+    renderUsersPage();
+  }catch(e){ toast('❌ '+(e.message||e),'#c0392b'); }
+}
+
+async function adminResetPw(userId, email){
+  const np = prompt('ตั้งรหัสผ่านใหม่ให้ '+email+' (อย่างน้อย 6 ตัว):');
+  if(np===null) return;
+  if(np.length < 6){ toast('รหัสผ่านสั้นเกินไป','#c0392b'); return; }
+  try{ await callAdminFn('setPassword', { userId, password: np }); toast('✅ รีเซ็ตรหัสผ่านแล้ว','#0e8060'); }
+  catch(e){ toast('❌ '+(e.message||e),'#c0392b'); }
+}
+
+function adminEditMeta(userId){
+  const u = _usersCache.find(x=>x.id===userId); if(!u) return;
+  document.getElementById('em-id').value = userId;
+  document.getElementById('em-who').textContent = u.email||'';
+  document.getElementById('em-role').value = u.role==='admin'?'admin':'staff';
+  document.getElementById('em-dept').value = u.dept || 'ALL';
+  document.getElementById('editmeta-modal').classList.add('open');
+}
+function closeEditMeta(){ document.getElementById('editmeta-modal').classList.remove('open'); }
+async function saveEditMeta(){
+  const userId = document.getElementById('em-id').value;
+  const role = document.getElementById('em-role').value;
+  const dept = document.getElementById('em-dept').value;
+  try{
+    await callAdminFn('setMeta', { userId, role, dept: dept==='ALL'?null:dept });
+    toast('✅ อัปเดตสิทธิ์เรียบร้อย (ผู้ใช้ต้อง login ใหม่จึงจะมีผลเต็มที่)','#0e8060');
+    closeEditMeta();
+    renderUsersPage();
+  }catch(e){ toast('❌ '+(e.message||e),'#c0392b'); }
+}
+
+async function adminDeleteUser(userId, email){
+  if(!confirm('ลบผู้ใช้ '+email+' ?\nการกระทำนี้ย้อนกลับไม่ได้')) return;
+  try{ await callAdminFn('delete', { userId }); toast('🗑 ลบผู้ใช้แล้ว','#0e8060'); renderUsersPage(); }
+  catch(e){ toast('❌ '+(e.message||e),'#c0392b'); }
+}
 
 // ════════════════════════════════════════
 // TRANSFER DASHBOARD (สรุปย้ายวอร์ด)
