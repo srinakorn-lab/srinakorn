@@ -47,6 +47,7 @@
   <div class="top-btns">
     <button class="tbtn-mode active" id="mode-dash" onclick="switchMode('dashboard')">📋 Dashboard</button>
     <button class="tbtn-mode" id="mode-transfer" onclick="switchMode('transfer')">🚚 ย้ายวอร์ด</button>
+    <button class="tbtn-mode" id="mode-import" onclick="switchMode('import')">📤 นำเข้า</button>
     <button class="tbtn-mode" id="mode-admin" onclick="switchMode('admin')">⚙️ Admin</button>
     <button class="tbtn-mode" onclick="openMyPassword()" title="เปลี่ยนรหัสผ่านของฉัน">🔑 รหัสผ่าน</button>
     <button class="logout-btn" onclick="doLogout()">🚪 ออกจากระบบ</button>
@@ -412,10 +413,10 @@
 <!-- ═══════════════════ ADMIN MODE ═══════════════════ -->
 <div id="admin-mode" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
 <div id="nav">
-  <button class="ntab active" onclick="gotoPage('import',this)">📤 นำเข้ารายงาน</button>
-  <button class="ntab" onclick="gotoPage('doctors',this)">🩺 แพทย์</button>
-  <button class="ntab" onclick="gotoPage('staff',this)">👩‍⚕️ RN/PN</button>
-  <button class="ntab" onclick="gotoPage('users',this)">👤 ผู้ใช้</button>
+  <button class="ntab active" id="nav-import" onclick="gotoPage('import',this)">📤 นำเข้ารายงาน</button>
+  <button class="ntab" id="nav-doctors" onclick="gotoPage('doctors',this)">🩺 แพทย์</button>
+  <button class="ntab" id="nav-staff" onclick="gotoPage('staff',this)">👩‍⚕️ RN/PN</button>
+  <button class="ntab" id="nav-users" onclick="gotoPage('users',this)">👤 ผู้ใช้</button>
 </div>
 
 <!-- IMPORT PAGE -->
@@ -445,12 +446,14 @@
     </div>
   </div>
   <div class="card">
-    <div class="ctitle">นำเข้า NCU จาก Excel</div>
+    <div class="ctitle">นำเข้าจาก Excel (เลือกแผนกได้)</div>
     <p style="font-size:12px;color:var(--txd);margin-bottom:10px;line-height:1.5;">
       อ่านคอลัมน์ <b>A–N</b> จากแผ่นวันที่ (เช่น <code>30469</code> = 30/4/69)<br>
       รหัสเตียง: <code>IMNCU1</code> = <code>IMNCU01</code>, <code>NCU03</code> = <code>NCU3</code> (เลขนำหน้า 0 ไม่สำคัญ)
     </p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+      <label style="font-size:12px;color:var(--txd);">แผนกปลายทาง:</label>
+      <select id="xls-dept" class="ipt" style="width:auto;min-width:80px;" onchange="if(document.getElementById('imp-dept'))document.getElementById('imp-dept').value=this.value;"><option>NCU</option><option>CCU</option><option>ICU</option></select>
       <button type="button" class="mbtn" onclick="document.getElementById('ncu-xls').click()" style="border-color:var(--teal);background:var(--teald);color:var(--teal);">📊 เลือกไฟล์ .xlsx</button>
       <input type="file" id="ncu-xls" accept=".xlsx,.xls" style="display:none" onchange="handleNCUExcel(this.files[0])">
       <label style="font-size:12px;color:var(--txd);">แผ่นวันที่:</label>
