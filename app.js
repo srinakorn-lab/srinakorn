@@ -214,12 +214,13 @@ async function persist() {
     report_history: rptHist,
     updated_at: new Date().toISOString()
   };
+  let dbFailed = false;
   if(sb) {
     try {
       const {error} = await sb.from('ccu_state').upsert(payload, {onConflict:'id'});
       if(error) throw error;
-      return;
-    } catch(e) { console.warn('Supabase persist error, falling back:', e); }
+      return true;
+    } catch(e) { console.warn('Supabase persist error, falling back:', e); dbFailed = true; }
   }
   // Fallback: localStorage
   const raw = JSON.parse(localStorage.getItem(SK) || '{}');
@@ -231,6 +232,8 @@ async function persist() {
   raw.rptHist = rptHist;
   localStorage.setItem(SK, JSON.stringify(raw));
   try { new BroadcastChannel('ccu_bc').postMessage('u'); } catch{}
+  // true = บันทึกเข้าที่เก็บที่ตั้งใจไว้สำเร็จ (โหมด local) ; false = ตั้งใจเขียน DB กลางแต่โดนปฏิเสธสิทธิ์
+  return sb && dbFailed ? false : true;
 }
 
 // saveAll: บันทึก doctors + stCfg + rptHist ทุกแผนก
@@ -986,7 +989,7 @@ function normalizeDrLine(p){p=p.trim().replace(/\s+/g,' ');if(p.length<3)return'
 function parsePlanNCU(v){const t=String(v||'').toLowerCase();if(/refer/.test(t))return'refer';if(/plan\s*d\/c|plan\s*dc/.test(t))return'plan D/C';if(/\bd\/c\b/.test(t))return'D/C';if(/ได้ห้อง|ย้าย.*ได้/.test(t))return'ย้าย ward ได้ห้องแล้ว';if(/ย้าย\s*ward|plan\s*ย้าย|ย้ายward/.test(t))return'ย้ายward รอห้อง';if(/รอรับ/.test(t))return'รอรับใหม่';return'อยู่ต่อ';}
 function sheetToRows(ws){if(!window.XLSX||!ws)return[];const ref=ws['!ref'];if(!ref)return[];const range=XLSX.utils.decode_range(ref);const rows=[];for(let R=range.s.r;R<=range.e.r;R++){const row=[];for(let C=range.s.c;C<=Math.min(range.e.c,20);C++){const cell=ws[XLSX.utils.encode_cell({r:R,c:C})];row.push(cell?(cell.w!=null?cell.w:cell.v!=null?String(cell.v):''):'');}if(row.some(c=>String(c).trim()!==''))rows.push(row);}return rows;}
 function parseNCUExcelRows(rows){let hdr=-1;for(let i=0;i<rows.length;i++){if(/^เตียง$/i.test(String(rows[i][0]||'').trim())){hdr=i;break;}}if(hdr<0)return[];const out=[];for(let i=hdr+1;i<rows.length;i++){const r=rows[i];const bedRaw=r[0];if(!bedRaw||!/NCU|IMNCU|IMMCU|IMNCCU|\d/i.test(String(bedRaw)))continue;const bc=parseBedCode(bedRaw);if(!bc)continue;const name=String(r[2]||'').trim();const hasPt=parseAgeCell(r[5])||genderFromName(name)||String(r[9]||'').trim()||String(r[13]||'').trim()||String(r[10]||'').trim()||String(r[11]||'').trim()||String(r[12]||'').trim();if(!hasPt){out.push({bed:bc.bed,empty:true,room_type:bc.room_type,bed_label:bc.bed_label,gender:'',age:'',admit_date:'',code:'',dx:[],master:[],consult:[],plan:'',los:'',orNote:'',ccNote:'',presentNote:'',rn:''});continue;}const {master,consult}=parseDoctorsCell(r[8]);const dx=parseDxCell(r[9]);out.push({bed:bc.bed,empty:false,room_type:bc.room_type,bed_label:bc.bed_label,gender:genderFromName(name),age:parseAgeCell(r[5]),admit_date:parseAdmitCell(r[6]),code:parseCodeCell(r[1]),los:parseLosCell(r[7]),orNote:String(r[10]||'').trim(),ccNote:String(r[11]||'').trim(),presentNote:String(r[12]||'').trim(),dx,master,consult,plan:parsePlanNCU(r[13]),rn:''});}const byBed={};out.forEach(b=>{if(!byBed[b.bed]||!b.empty)byBed[b.bed]=b;});return Object.keys(byBed).sort((a,b)=>a-b).map(k=>byBed[k]);}
-async function handleNCUExcel(file){if(!file)return;showProgress(true,'กำลังโหลด SheetJS...');try{if(!window.XLSX)await loadScript('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');showProgress(true,'กำลังอ่าน '+file.name+'...');const ab=await file.arrayBuffer();ncuWorkbook=XLSX.read(ab,{type:'array'});ncuFileName=file.name;const sel=document.getElementById('ncu-sheet-sel');let names=ncuWorkbook.SheetNames.filter(n=>!/export\s*summary/i.test(n));names.sort((a,b)=>parseInt(b.replace(/\D/g,''),10)-parseInt(a.replace(/\D/g,''),10));sel.innerHTML=names.map(n=>`<option value="${n}">${formatSheetDate(n)} (${n})</option>`).join('');sel.style.display=names.length?'inline-block':'none';if(names.length)sel.value=names[0];document.getElementById('ncu-parse-btn').style.display=names.length?'inline-block':'none';document.getElementById('imp-dept').value='NCU';if(names.length)parseSelectedNCUSheet();toast('📊 โหลด Excel '+names.length+' แผ่น — เลือกวันที่แล้วกดนำเข้า','#0e8060');}catch(e){alert('อ่าน Excel ไม่สำเร็จ: '+e.message);console.error(e);}showProgress(false);}
+async function handleNCUExcel(file){if(!file)return;showProgress(true,'กำลังโหลด SheetJS...');try{if(!window.XLSX)await loadScript('https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js');showProgress(true,'กำลังอ่าน '+file.name+'...');const ab=await file.arrayBuffer();ncuWorkbook=XLSX.read(ab,{type:'array'});ncuFileName=file.name;const sel=document.getElementById('ncu-sheet-sel');let names=ncuWorkbook.SheetNames.filter(n=>!/export\s*summary/i.test(n));names.sort((a,b)=>parseInt(b.replace(/\D/g,''),10)-parseInt(a.replace(/\D/g,''),10));sel.innerHTML=names.map(n=>`<option value="${n}">${formatSheetDate(n)} (${n})</option>`).join('');sel.style.display=names.length?'inline-block':'none';if(names.length)sel.value=names[0];document.getElementById('ncu-parse-btn').style.display=names.length?'inline-block':'none';const xd=document.getElementById('xls-dept');const tgt=(xd&&xd.value)||'NCU';document.getElementById('imp-dept').value=tgt;if(names.length)parseSelectedNCUSheet();toast('📊 โหลด Excel '+names.length+' แผ่น — เลือกวันที่แล้วกดนำเข้า','#0e8060');}catch(e){alert('อ่าน Excel ไม่สำเร็จ: '+e.message);console.error(e);}showProgress(false);}
 function parseSelectedNCUSheet(){if(!ncuWorkbook)return;const name=document.getElementById('ncu-sheet-sel').value;const ws=ncuWorkbook.Sheets[name];const rows=sheetToRows(ws);const beds=parseNCUExcelRows(rows);const label=ncuFileName+' · แผ่น '+formatSheetDate(name);setRaw('แผ่น: '+name+'\n'+rows.slice(0,15).map(r=>r.slice(0,14).join('\t')).join('\n'));finishParse(beds,label,'NCU Excel '+name);}
 
 // ════════════════════════════════════════
@@ -1020,8 +1023,11 @@ async function doImport(){
     allBeds[td][id]=applyParsedToBed(cur,b,td);cnt++;
   });
   editDept=td;
-  await persist();
-  load().then(()=>{renderTable();toast(`✓ นำเข้า ${cnt} เตียง → ${td} สำเร็จ`,'#0e8060');});
+  const okSaved=await persist();
+  load().then(()=>{renderTable();
+    if(okSaved) toast(`✓ นำเข้า ${cnt} เตียง → ${td} สำเร็จ`,'#0e8060');
+    else toast(`⚠ นำเข้า ${cnt} เตียงแล้ว แต่บันทึกขึ้นฐานข้อมูลกลางไม่ได้ (สิทธิ์ไม่พอ) — คนอื่นจะยังไม่เห็น แจ้งแอดมินรัน RLS`,'#c0392b');
+  });
 }
 
 // ════════════════════════════════════════
