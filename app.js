@@ -1,5 +1,5 @@
 // ════════════════════════════════════════
-// CCU SYSTEM — app.js
+// Critical SYSTEM — app.js
 // ผสาน logic ทั้งหมดจาก ccu_combined_4
 // พร้อม Supabase Auth + Realtime
 // ════════════════════════════════════════
