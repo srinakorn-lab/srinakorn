@@ -94,14 +94,14 @@
 <!-- STATS BAR -->
 <div id="sbar">
   <div class="stat"><span class="sl" id="st-occ-lbl">ผู้ป่วย</span><span class="sv" id="st-occ" style="color:var(--tx)">0</span></div>
-  <div class="stat" id="st-dept-wrap" style="display:none;background:#f0f6fc;flex-direction:column;align-items:flex-start;gap:2px;padding:4px 11px;">
+  <div class="stat" id="st-dept-wrap" style="display:none;background:var(--surf2);flex-direction:column;align-items:flex-start;gap:2px;padding:4px 11px;">
     <span class="sl">แยกแผนก</span>
     <span id="st-dept-brk" style="font-size:11px;font-weight:600;line-height:1.45;color:var(--txd);"></span>
   </div>
-  <div class="stat" style="background:#e8f8f0;"><span class="sl">D/C</span><span class="sv" id="st-dc" style="color:var(--teal)">0</span></div>
-  <div class="stat" style="background:#fff8e0;"><span class="sl">รอย้าย</span><span class="sv" id="st-ward" style="color:var(--ambl)">0</span></div>
-  <div class="stat" style="background:#e0ecf8;"><span class="sl">ได้ห้อง</span><span class="sv" id="st-got" style="color:var(--blue)">0</span></div>
-  <div class="stat" style="background:#ece8f8;"><span class="sl">Refer</span><span class="sv" id="st-ref" style="color:var(--pur)">0</span></div>
+  <div class="stat" style="background:var(--teald);border-color:#bfe8d7;"><span class="sl">D/C</span><span class="sv" id="st-dc" style="color:var(--teall)">0</span></div>
+  <div class="stat" style="background:var(--ambd);border-color:#ecd49a;"><span class="sl">รอย้าย</span><span class="sv" id="st-ward" style="color:var(--ambl)">0</span></div>
+  <div class="stat" style="background:var(--blued);border-color:#c4dbf7;"><span class="sl">ได้ห้อง</span><span class="sv" id="st-got" style="color:var(--blue)">0</span></div>
+  <div class="stat" style="background:var(--purd);border-color:#d4cef6;"><span class="sl">Refer</span><span class="sv" id="st-ref" style="color:var(--pur)">0</span></div>
   <div class="sbr">
     <span id="cdt" title="countdown ถึงรีเฟรชอัตโนมัติ"></span>
     <button class="bsm" id="pause-refresh-btn" onclick="toggleAutoRefresh()">⏸ พักรีเฟรช</button>
@@ -165,8 +165,8 @@
       <div style="font-size:10px;color:var(--txm);margin-top:4px;">1 = น้อย &nbsp;→&nbsp; 5 = วิกฤต</div>
     </div>
     <!-- Class 5 — Critical Care Items (เลือกได้มากกว่า 1) -->
-    <div id="box-class5" style="display:none;background:#fce8e8;border:1px solid #d88080;border-radius:var(--r);padding:12px;">
-      <div class="stitle" style="color:#8a1a1a;border-bottom-color:#d88080;">🚨 Class 5 — Critical Care Items <span style="font-weight:400;font-size:11px;color:var(--txd);">(เลือกได้มากกว่า 1)</span></div>
+    <div id="box-class5" style="display:none;background:var(--redl);border:1px solid #f0aab1;border-radius:var(--r);padding:12px;">
+      <div class="stitle" style="color:#9a1f2c;border-bottom-color:#f0aab1;">🚨 Class 5 — Critical Care Items <span style="font-weight:400;font-size:11px;color:var(--txd);">(เลือกได้มากกว่า 1)</span></div>
       <div id="class5-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:8px;"></div>
       <label class="flbl">7. อื่นๆ ระบุ</label>
       <input class="ipt" id="m-class5-other" placeholder="พิมพ์รายละเอียดเพิ่มเติม...">
@@ -262,7 +262,7 @@
     <div id="chk-card" style="display:none;background:var(--surf2);border:1px solid var(--bdr);border-radius:var(--r);padding:10px;">
       <div class="stitle" id="chk-title">Checklist</div>
       <div id="chk-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:5px;"></div>
-      <div id="chk-done" style="display:none;margin-top:8px;background:#d0eedc;border:1px solid #0e8060;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;color:#0e6040;">✅ Checklist ครบ — พร้อม D/C / Refer</div>
+      <div id="chk-done" style="display:none;margin-top:8px;background:var(--teald);border:1px solid var(--teal);border-radius:8px;padding:7px 11px;font-size:12px;font-weight:600;color:var(--teall);">✅ Checklist ครบ — พร้อม D/C / Refer</div>
     </div>
   </div>
   <div class="mftr" style="justify-content:space-between;">
