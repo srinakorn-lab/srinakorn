@@ -9,11 +9,14 @@
 <!-- Supabase JS SDK -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link rel="stylesheet" href="styles.css">
+<!-- Night mode: อ่านค่าที่จำไว้ก่อนหน้าเรนเดอร์ กันจอกะพริบ -->
+<script>(function(){try{if(localStorage.getItem('ccu_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}})();</script>
 </head>
 <body>
 
 <!-- ═══════════════════════════════════ LOGIN ═══════════════════════════════════ -->
 <div id="login-screen">
+  <button class="theme-fab" id="login-theme-btn" onclick="toggleTheme()" title="สลับโหมดสว่าง/มืด">🌙</button>
   <div class="login-box">
     <div class="login-logo">
       <span class="ico">🏥</span>
@@ -50,6 +53,7 @@
     <button class="tbtn-mode" id="mode-import" onclick="switchMode('import')">📤 นำเข้า</button>
     <button class="tbtn-mode" id="mode-admin" onclick="switchMode('admin')">⚙️ Admin</button>
     <button class="tbtn-mode" onclick="openMyPassword()" title="เปลี่ยนรหัสผ่านของฉัน">🔑 รหัสผ่าน</button>
+    <button class="tbtn-mode" id="theme-btn" onclick="toggleTheme()" title="สลับโหมดสว่าง/มืด">🌙</button>
     <button class="logout-btn" onclick="doLogout()">🚪 ออกจากระบบ</button>
   </div>
 </div>
@@ -588,6 +592,24 @@
 </div><!-- end admin-mode -->
 </div><!-- end main-app -->
 
+<script>
+// Night mode toggle — จำค่าไว้ใน localStorage ('ccu_theme')
+function toggleTheme(){
+  var el=document.documentElement;
+  var dark=el.getAttribute('data-theme')==='dark';
+  if(dark)el.removeAttribute('data-theme');else el.setAttribute('data-theme','dark');
+  try{localStorage.setItem('ccu_theme',dark?'light':'dark');}catch(e){}
+  updateThemeIcons();
+}
+function updateThemeIcons(){
+  var dark=document.documentElement.getAttribute('data-theme')==='dark';
+  ['theme-btn','login-theme-btn'].forEach(function(id){
+    var b=document.getElementById(id);
+    if(b)b.textContent=dark?'☀️':'🌙';
+  });
+}
+updateThemeIcons();
+</script>
 <script src="app.js" defer></script>
 </body>
 </html>
