@@ -62,6 +62,9 @@
 <!-- ═══════════════════ DASHBOARD MODE ═══════════════════ -->
 <div id="dash-mode" style="display:flex;flex-direction:column;flex:1;overflow:hidden;">
 
+<!-- ปุ่มเปิด/ซ่อนแผงส่วนหัว (แสดงเฉพาะจอมือถือ) -->
+<div id="hdr-toggle"><button id="hdr-toggle-btn" onclick="toggleHdrPanel()">▾ แสดงแผนก/สถิติ</button></div>
+
 <!-- HEADER -->
 <div id="hdr">
   <select id="dept-sel" onchange="changeDept()"><option value="ALL">📊 รวม 3 แผนก</option><option value="CCU">CCU</option><option value="NCU">NCU</option><option value="ICU">ICU</option></select>
@@ -609,6 +612,24 @@ function updateThemeIcons(){
   });
 }
 updateThemeIcons();
+// ซ่อน/แสดงแผงส่วนหัวบนมือถือ — จำค่าไว้ใน localStorage ('ccu_hdr_hidden')
+function toggleHdrPanel(){
+  var dm=document.getElementById('dash-mode');
+  var hidden=dm.classList.toggle('hdr-hidden');
+  try{localStorage.setItem('ccu_hdr_hidden',hidden?'1':'0');}catch(e){}
+  updateHdrToggleBtn();
+}
+function updateHdrToggleBtn(){
+  var dm=document.getElementById('dash-mode');
+  var b=document.getElementById('hdr-toggle-btn');
+  if(b)b.textContent=dm.classList.contains('hdr-hidden')?'▾ แสดงแผนก/สถิติ':'▴ ซ่อนแผนก/สถิติ';
+}
+(function(){
+  var saved=null;
+  try{saved=localStorage.getItem('ccu_hdr_hidden');}catch(e){}
+  if(saved===null||saved==='1')document.getElementById('dash-mode').classList.add('hdr-hidden');
+  updateHdrToggleBtn();
+})();
 </script>
 <script src="app.js" defer></script>
 </body>
