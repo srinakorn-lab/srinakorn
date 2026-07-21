@@ -67,7 +67,7 @@
 
 <!-- HEADER -->
 <div id="hdr">
-  <select id="dept-sel" onchange="changeDept()"><option value="ALL">📊 รวม 3 แผนก</option><option value="CCU">CCU</option><option value="NCU">NCU</option><option value="ICU">ICU</option></select>
+  <select id="dept-sel" onchange="changeDept()"><option value="ALL">📊 รวม 4 แผนก</option><option value="CCU">CCU</option><option value="NCU">NCU</option><option value="ICU">ICU</option><option value="PS2">ICU PS2</option></select>
   <div class="hdr-info">
     <div class="hdr-title"><span class="ldot"></span><span id="dtitle">Critical DASHBOARD</span></div>
     <div class="hdr-sub" id="dfull">หอผู้ป่วยวิกฤตโรคหัวใจ</div>
@@ -290,7 +290,7 @@
     <div id="sw-src"></div>
     <div><label class="flbl">โหมด</label><div style="display:flex;gap:7px;"><button id="sw-swap" class="plbtn" onclick="setSwapMode('swap')" style="flex:1;">⇄ สลับกัน</button><button id="sw-move" class="plbtn" onclick="setSwapMode('move')" style="flex:1;">→ ย้ายไปว่าง</button></div></div>
     <div class="g2">
-      <div><label class="flbl">แผนก</label><select class="ipt" id="sw-dept" onchange="buildSwapBeds()"><option>CCU</option><option>NCU</option><option>ICU</option></select></div>
+      <div><label class="flbl">แผนก</label><select class="ipt" id="sw-dept" onchange="buildSwapBeds()"><option>CCU</option><option>NCU</option><option>ICU</option><option value="PS2">ICU PS2</option></select></div>
       <div><label class="flbl">เตียง</label><select class="ipt" id="sw-bed" onchange="previewSwap()"></select></div>
     </div>
     <div id="sw-prev" style="display:none;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r);padding:10px;font-size:12px;"></div>
@@ -374,7 +374,7 @@
       <input type="hidden" id="em-id">
       <div style="font-size:12px;color:var(--txd);">บัญชี: <b id="em-who" style="color:var(--tx);word-break:break-all;"></b></div>
       <div><label class="flbl">สิทธิ์ (role)</label><select class="ipt" id="em-role"><option value="staff">staff</option><option value="admin">admin</option></select></div>
-      <div><label class="flbl">แผนกที่เข้าถึง</label><select class="ipt" id="em-dept"><option value="ALL">ทุกแผนก</option><option>CCU</option><option>NCU</option><option>ICU</option></select></div>
+      <div><label class="flbl">แผนกที่เข้าถึง</label><select class="ipt" id="em-dept"><option value="ALL">ทุกแผนก</option><option>CCU</option><option>NCU</option><option>ICU</option><option value="PS2">ICU PS2</option></select></div>
       <div style="font-size:10px;color:var(--txm);">การเปลี่ยนสิทธิ์จะมีผลเต็มที่เมื่อผู้ใช้ออกแล้วเข้าระบบใหม่</div>
     </div>
     <div class="mftr" style="justify-content:flex-end;">
@@ -401,6 +401,7 @@
     <button class="tr-dept-btn" data-dept="CCU" onclick="setTransferDeptFilter('CCU')">CCU</button>
     <button class="tr-dept-btn" data-dept="NCU" onclick="setTransferDeptFilter('NCU')">NCU</button>
     <button class="tr-dept-btn" data-dept="ICU" onclick="setTransferDeptFilter('ICU')">ICU</button>
+    <button class="tr-dept-btn" data-dept="PS2" onclick="setTransferDeptFilter('PS2')">ICU PS2</button>
   </div>
   <div id="tr-summary"></div>
   <div id="tr-body">
@@ -460,7 +461,7 @@
     </p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
       <label style="font-size:12px;color:var(--txd);">แผนกปลายทาง:</label>
-      <select id="xls-dept" class="ipt" style="width:auto;min-width:80px;" onchange="if(document.getElementById('imp-dept'))document.getElementById('imp-dept').value=this.value;"><option>NCU</option><option>CCU</option><option>ICU</option></select>
+      <select id="xls-dept" class="ipt" style="width:auto;min-width:80px;" onchange="if(document.getElementById('imp-dept'))document.getElementById('imp-dept').value=this.value;"><option>NCU</option><option>CCU</option><option>ICU</option><option value="PS2">ICU PS2</option></select>
       <button type="button" class="mbtn" onclick="document.getElementById('ncu-xls').click()" style="border-color:var(--teal);background:var(--teald);color:var(--teal);">📊 เลือกไฟล์ .xlsx</button>
       <input type="file" id="ncu-xls" accept=".xlsx,.xls" style="display:none" onchange="handleNCUExcel(this.files[0])">
       <label style="font-size:12px;color:var(--txd);">แผ่นวันที่:</label>
@@ -476,7 +477,7 @@
     <div class="ctitle">
       <span>📅 ย้อนหลัง 5 วัน</span>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <select id="imp-dept" class="ipt" style="width:auto;min-width:95px;"><option>CCU</option><option>NCU</option><option>ICU</option></select>
+        <select id="imp-dept" class="ipt" style="width:auto;min-width:95px;"><option>CCU</option><option>NCU</option><option>ICU</option><option value="PS2">ICU PS2</option></select>
         <button onclick="doImport()" style="background:var(--blue);border:none;border-radius:var(--r);color:#fff;padding:5px 12px;cursor:pointer;font-size:12px;font-family:inherit;font-weight:500;">✓ นำเข้า</button>
       </div>
     </div>
@@ -545,6 +546,7 @@
       <button class="stab on" onclick="swSD('CCU',this)">CCU</button>
       <button class="stab" onclick="swSD('NCU',this)">NCU</button>
       <button class="stab" onclick="swSD('ICU',this)">ICU</button>
+      <button class="stab" onclick="swSD('PS2',this)">ICU PS2</button>
     </div>
     <div class="g2" style="gap:14px;">
       <div>
@@ -577,7 +579,7 @@
     </div>
     <div class="g2" style="margin-bottom:9px;">
       <div><label class="flbl">สิทธิ์ (role)</label><select class="ipt" id="nu-role"><option value="staff">staff (ใช้งานทั่วไป)</option><option value="admin">admin (ผู้ดูแล)</option></select></div>
-      <div><label class="flbl">แผนกที่เข้าถึง</label><select class="ipt" id="nu-dept"><option value="ALL">ทุกแผนก</option><option>CCU</option><option>NCU</option><option>ICU</option></select></div>
+      <div><label class="flbl">แผนกที่เข้าถึง</label><select class="ipt" id="nu-dept"><option value="ALL">ทุกแผนก</option><option>CCU</option><option>NCU</option><option>ICU</option><option value="PS2">ICU PS2</option></select></div>
     </div>
     <button onclick="adminCreateUser()" style="width:100%;padding:8px;background:var(--blue);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-size:13px;font-family:inherit;font-weight:600;">+ สร้างบัญชีผู้ใช้</button>
     <div style="font-size:10px;color:var(--txm);margin-top:6px;">แนะนำให้ผู้ใช้เปลี่ยนรหัสผ่านเองหลังเข้าระบบครั้งแรก (ปุ่ม 🔑 รหัสผ่าน มุมขวาบน)</div>

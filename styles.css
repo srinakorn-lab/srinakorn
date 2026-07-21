@@ -138,6 +138,7 @@ table.mt td{padding:10px;vertical-align:top;color:var(--tx);font-size:13px;}
 .dept-pill.ccu{background:var(--blued);color:var(--blue);border-color:#bcd6f7;}
 .dept-pill.ncu{background:var(--teald);color:var(--teall);border-color:#9cdcc4;}
 .dept-pill.icu{background:var(--ambd);color:var(--ambl);border-color:#e7c98a;}
+.dept-pill.ps2{background:var(--purd);color:var(--pur);border-color:#cdc7f4;}
 .dept-sec td{background:var(--surf2);font-size:11px;font-weight:700;color:var(--blue);padding:8px 10px;border-bottom:1px solid var(--bdr);border-top:1px solid var(--bdr);letter-spacing:.3px;}
 .bedc{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;font-family:'IBM Plex Mono',monospace;margin:0 auto 4px;box-shadow:var(--sh-sm);}
 .pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid;white-space:nowrap;}
@@ -465,6 +466,7 @@ html[data-theme="dark"] #s-inc,html[data-theme="dark"] #se-inc,html[data-theme="
 html[data-theme="dark"] .dept-pill.ccu{border-color:#2a4a74;}
 html[data-theme="dark"] .dept-pill.ncu{border-color:#1e4a3a;}
 html[data-theme="dark"] .dept-pill.icu{border-color:#5a4416;}
+html[data-theme="dark"] .dept-pill.ps2{border-color:#3d3776;}
 html[data-theme="dark"] .gbm,html[data-theme="dark"] .gbm2{background:#1c3350;color:#9cc4f8;border-color:#2f4d74;}
 html[data-theme="dark"] .gbf,html[data-theme="dark"] .gbf2{background:#3d2233;color:#f0a8cc;border-color:#5e3a52;}
 /* ฟอร์ม / โมดอล */

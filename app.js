@@ -21,11 +21,12 @@ async function getSupabase() {
 // ════════════════════════════════════════
 const SK = 'ccu_v3';
 const MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
-const ALL_DEPTS = ['CCU','NCU','ICU'];
+const ALL_DEPTS = ['CCU','NCU','ICU','PS2'];
 const DEPTS = {
   CCU:{full:'หอผู้ป่วยวิกฤตโรคหัวใจ',beds:9,types:['CCU','IMCCU','ฝากนอน']},
   NCU:{full:'หอผู้ป่วยวิกฤตระบบประสาท',beds:7,types:['NCU','IMNCU','ฝากนอน']},
-  ICU:{full:'หอผู้ป่วยวิกฤตอายุรกรรม',beds:13,types:['ICU','IMCU','ฝากนอน']}
+  ICU:{full:'หอผู้ป่วยวิกฤตอายุรกรรม',beds:13,types:['ICU','IMCU','ฝากนอน']},
+  PS2:{full:'หอผู้ป่วยวิกฤต ICU PS2 (6 เตียงหลัก + เสริมได้อีก 3 เตียง รวมสูงสุด 9)',beds:9,types:['ICU PS2','ฝากนอน']}
 };
 const TC = {
   CCU:{bg:'#cce0f8',tx:'#1a3a6a',br:'#7ab0d8'},
@@ -34,6 +35,7 @@ const TC = {
   IMNCU:{bg:'#c8eed8',tx:'#0a6040',br:'#50b888'},
   ICU:{bg:'#fff3d0',tx:'#7a5200',br:'#e0a020'},
   IMCU:{bg:'#fce8d8',tx:'#6a3010',br:'#d08040'},
+  'ICU PS2':{bg:'#fce4ee',tx:'#7a0f45',br:'#d97fa8'},
   ฝากนอน:{bg:'#e8e8e8',tx:'#4a4a4a',br:'#b0b0b0'}
 };
 const PC = {
@@ -113,7 +115,8 @@ let currentUserMeta = {};
 const DEF_ST = {
   CCU:{RN:['ศรีนคร โคทะนา','ฐาวิตรี ศรีศิริ','เจนจุรี ดวงแก้วปั้น','มณัฑนา วัฒนะพล','ไพจิตร หีบแก้ว','ลลิตา แสงส่อง','สโรชา แสงโยธา','กานต์มณี พรมชาติ','สุดารัตน์ สายโสม','สกาย นาดี'],PN:['เปมิกา สอนพงษ์','ละมุล สาลีวงษ์','สุกัญญา เริงเขตการ','ขวัญฤดี มีภักดี','สาวิตรี ชนะค้า','ขวัญชนก ปิ่นหอม','ชลนิภา พุ่มพวง','ศิรินาฎ ชมจันทร์','ขวัญธิดา หงษ์สาพันธ์']},
   NCU:{RN:['กาญจนา ภูมิคำ','วิชุตา กุนอก','มอญ ไชยสุระ','จันทนา เกตุนาค','มนธิรา หาวงศ์','รัญชิดา สนคงนอก','เพ็ญพลอย อุ่นนา','ศศินา ทะนารี','วราลักษณ์ เวฬุวนาธร','ชุติมา ปนคำ','ณัฐพร พันนุมา','มยุรา ไชบุญญา','กัลยาณี พงษ์วัน','จิราภรณ์ นะวะสด'],PN:['พิชญ์สินี เลิศนราวโรจน์','หยาดพิรุณ แสงสว่าง','อรนุช วงศ์ษาบุตร','ประณิตา ศิริวรรณ','ปรัชญา แกมนิล','รติกร จุลพันธ์','หัทยา เผยสง่า','อุลัย จันทร์สว่าง','นิภาพร เกษมศรีสุขสง่า']},
-  ICU:{RN:['ศิริลักษณ์ แสนอุบล','บุณยวีร์ กลิ่นเพชร์','พัชรา สายกระสุน','เจนจิรา ศรีสงคราม','จิรเนตร พันธุ์คุ้มเก่า','มารศรี จันทราช','ณัฐนนท์ หลายแห่ง','นิศาชล หงษ์หิน','พัชรพร อินทำ','มุยรา ไชบุญญา','สิริกัลยาภรณ์ พลหาญ','วันทนีย์ สารักษ์','เดือนเพ็ญ บุญแก้ว','อุชเชษินี พิจารณ์','ชญานิศ ชัยฤทธิ์'],PN:['อมรา ทองแสง','ทิพย์พวรรณ สวัสดี','วราภรณ์ ดำนิน','รุ่งนภา พวงจำปา','นัทพร แก้วคำชาติ','มณีรุ่ง สิงห์คะนอง','ชลธิชา ยวนยี','วิจิตรา ไตรยะมูล','ปวีณา แสนเสน','ปัณณรัชต์ บุระเนตร','การัติมา ดีบุปผา','ยลดา พัฒนจักร์']}
+  ICU:{RN:['ศิริลักษณ์ แสนอุบล','บุณยวีร์ กลิ่นเพชร์','พัชรา สายกระสุน','เจนจิรา ศรีสงคราม','จิรเนตร พันธุ์คุ้มเก่า','มารศรี จันทราช','ณัฐนนท์ หลายแห่ง','นิศาชล หงษ์หิน','พัชรพร อินทำ','มุยรา ไชบุญญา','สิริกัลยาภรณ์ พลหาญ','วันทนีย์ สารักษ์','เดือนเพ็ญ บุญแก้ว','อุชเชษินี พิจารณ์','ชญานิศ ชัยฤทธิ์'],PN:['อมรา ทองแสง','ทิพย์พวรรณ สวัสดี','วราภรณ์ ดำนิน','รุ่งนภา พวงจำปา','นัทพร แก้วคำชาติ','มณีรุ่ง สิงห์คะนอง','ชลธิชา ยวนยี','วิจิตรา ไตรยะมูล','ปวีณา แสนเสน','ปัณณรัชต์ บุระเนตร','การัติมา ดีบุปผา','ยลดา พัฒนจักร์']},
+  PS2:{RN:[],PN:[]}
 };
 const DEF_DR = [
   {name:'นพ. กิตติคุณ จอมใจ',spec:'Anes',workType:'Full-Time'},{name:'นพ. ฤทธิชัย พุทธประสิทธิ์',spec:'Anes',workType:'Full-Time'},{name:'นพ. ศักดิ์ดา อำนวยเดชกร',spec:'Anes',workType:'Full-Time'},{name:'นพ. สุเมธ วงศ์พิมพ์',spec:'Anes',workType:'Full-Time'},{name:'พญ. จริยา เลาหสุขไพศาล',spec:'Anes',workType:'Full-Time'},{name:'พญ. อภิญญา ศิริธนากิจ',spec:'Anes',workType:'Full-Time'},
@@ -301,7 +304,7 @@ async function doLogin() {
     }
   }
   // Fallback local login
-  const USERS = {admin:'1234',ccu:'1234',icu:'1234',ncu:'1234'};
+  const USERS = {admin:'1234',ccu:'1234',icu:'1234',ncu:'1234',ps2:'1234'};
   const uKey = u.split('@')[0].toLowerCase();
   if(USERS[uKey] !== p) { showLoginErr('❌ รหัสผ่านไม่ถูกต้อง'); btn.disabled = false; document.getElementById('login-btn-icon').textContent = '🔐'; document.getElementById('login-btn-text').textContent = 'เข้าสู่ระบบ'; return; }
   currentUser = uKey;
@@ -316,6 +319,7 @@ function showLoginErr(msg) {
 }
 function guessDeptFromEmail(email) {
   const prefix = (email || '').split('@')[0].toUpperCase();
+  if(prefix.includes('PS2')) return 'PS2';
   if(prefix.includes('CCU')) return 'CCU';
   if(prefix.includes('NCU')) return 'NCU';
   if(prefix.includes('ICU')) return 'ICU';
@@ -418,7 +422,8 @@ function syncDeptFromSelect() {
 }
 function isAllView() { syncDeptFromSelect(); return dept === 'ALL'; }
 function bedDept(b) { return b._dept || b.dept; }
-function deptPill(d) { const c = {CCU:'ccu',NCU:'ncu',ICU:'icu'}[d]||'ccu'; return `<span class="dept-pill ${c}">${d}</span>`; }
+function deptLabel(d) { return d==='PS2' ? 'ICU PS2' : d; }
+function deptPill(d) { const c = {CCU:'ccu',NCU:'ncu',ICU:'icu',PS2:'ps2'}[d]||'ccu'; return `<span class="dept-pill ${c}">${deptLabel(d)}</span>`; }
 function statsForDept(beds, d) {
   const sub = beds.filter(b => bedDept(b) === d);
   const occ = sub.filter(b => b.dx?.length || b.plan === 'รอรับใหม่').length;
@@ -427,11 +432,11 @@ function statsForDept(beds, d) {
 function changeDept() {
   syncDeptFromSelect();
   if(isAllView()) {
-    document.getElementById('dtitle').textContent = 'รวม 3 แผนก DASHBOARD';
-    document.getElementById('dfull').textContent = 'CCU · NCU · ICU — ภาพรวมทุกเตียง';
+    document.getElementById('dtitle').textContent = 'รวม 4 แผนก DASHBOARD';
+    document.getElementById('dfull').textContent = 'CCU · NCU · ICU · ICU PS2 — ภาพรวมทุกเตียง';
   } else {
     editDept = dept;
-    document.getElementById('dtitle').textContent = dept + ' DASHBOARD';
+    document.getElementById('dtitle').textContent = deptLabel(dept) + ' DASHBOARD';
     document.getElementById('dfull').textContent = DEPTS[dept]?.full || '';
   }
   const resetBtn = document.querySelector('.breset');
@@ -439,7 +444,7 @@ function changeDept() {
   renderLegend(); renderTable(); renderStaff();
 }
 function renderLegend() {
-  const types = isAllView() ? ['CCU','IMCCU','NCU','IMNCU','ICU','IMCU','ฝากนอน'] : (DEPTS[dept]?.types || []);
+  const types = isAllView() ? ['CCU','IMCCU','NCU','IMNCU','ICU','IMCU','ICU PS2','ฝากนอน'] : (DEPTS[dept]?.types || []);
   const el = document.getElementById('tleg');
   if(el) el.innerHTML = types.map(t => tpill(t)).join('');
 }
@@ -456,7 +461,7 @@ function toggleStaff() {
 function renderStaff() {
   syncDeptFromSelect();
   if(isAllView()) {
-    const depts = ['CCU','NCU','ICU'];
+    const depts = ALL_DEPTS;
     if(staffExp) {
       document.getElementById('se-inc').textContent = depts.map(d=>`${d}: ${(wards[d]||{}).inCharge||'—'}`).join(' · ');
       document.getElementById('se-tl').textContent  = depts.map(d=>`${d}: ${(wards[d]||{}).teamLead||'—'}`).join(' · ');
@@ -465,7 +470,7 @@ function renderStaff() {
       document.getElementById('se-rn').innerHTML = depts.map(d=>{const w=wards[d]||{};const sc=stCfg[d]||{};const rns=w.shiftRN?.length?w.shiftRN:(sc.RN||[]);return`<div style="margin-bottom:5px;"><span style="font-size:10px;font-weight:700;color:var(--blue);">${d}</span> ${rns.length?rns.map(n=>`<span class="ch rn">${n}</span>`).join(''):'<span style="color:var(--txm);">—</span>'}</div>`;}).join('');
       document.getElementById('se-pn').innerHTML = depts.map(d=>{const w=wards[d]||{};const sc=stCfg[d]||{};const pns=w.shiftPN?.length?w.shiftPN:(sc.PN||[]);return`<div style="margin-bottom:5px;"><span style="font-size:10px;font-weight:700;color:var(--ambl);">${d}</span> ${pns.length?pns.map(n=>`<span class="ch pn">${n}</span>`).join(''):'<span style="color:var(--txm);">—</span>'}</div>`;}).join('');
     } else {
-      document.getElementById('s-inc').textContent = 'รวม 3 แผนก';
+      document.getElementById('s-inc').textContent = 'รวม 4 แผนก';
       document.getElementById('s-tl').textContent = '▼ ขยาย';
       document.getElementById('s-cb').textContent = '';
       document.getElementById('s-dr').textContent = '';
@@ -486,9 +491,9 @@ function renderStaff() {
   const pnDl = document.getElementById('pn-dl'); if(pnDl) pnDl.innerHTML = (sc.PN||[]).map(n=>`<option value="${n}">`).join('');
 }
 function openStaff() {
-  if(isAllView()) { toast('เลือกแผนก CCU / NCU / ICU ก่อนแก้ไขบุคลากรเวร','#1a6fcc'); return; }
+  if(isAllView()) { toast('เลือกแผนก CCU / NCU / ICU / ICU PS2 ก่อนแก้ไขบุคลากรเวร','#1a6fcc'); return; }
   const w = wards[dept]||{};
-  document.getElementById('sdlbl').textContent = dept;
+  document.getElementById('sdlbl').textContent = deptLabel(dept);
   document.getElementById('w-inc').value = w.inCharge||'';
   document.getElementById('w-tl').value  = w.teamLead||'';
   document.getElementById('w-cb').value  = w.codeBlue||'';
@@ -875,7 +880,7 @@ function saveBed(){
 // ════════════════════════════════════════
 // RESET BEDS
 // ════════════════════════════════════════
-function confirmResetBeds(){if(isAllView()){toast('เลือกแผนก CCU / NCU / ICU ก่อนล้างเตียงทั้งหมด','#c0392b');return;}document.getElementById('reset-dept-lbl').textContent=dept;document.getElementById('reset-modal').classList.add('open');}
+function confirmResetBeds(){if(isAllView()){toast('เลือกแผนก CCU / NCU / ICU / ICU PS2 ก่อนล้างเตียงทั้งหมด','#c0392b');return;}document.getElementById('reset-dept-lbl').textContent=deptLabel(dept);document.getElementById('reset-modal').classList.add('open');}
 function closeReset(){document.getElementById('reset-modal').classList.remove('open');}
 function doResetBeds(){
   const d=dept;
